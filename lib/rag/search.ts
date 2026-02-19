@@ -38,5 +38,117 @@ export async function hybridSearch(
   supabase: SupabaseClient,
   params: SearchParams
 ): Promise<SearchResponse> {
-  throw new Error("Not implemented");
+  // 1. Embed the query
+  const { embedding, tokenCount } = await embedQuery(params.query);
+
+  // 2. Resolve filters to document IDs
+  const filterDocumentIds = params.filters
+    ? await resolveFilterDocumentIds(supabase, params.filters)
+    : null;
+
+  // 3. Call the hybrid search RPC
+  const { data, error } = await supabase.rpc("hybrid_search", {
+    query_text: params.query,
+    query_embedding: embedding,
+    match_count: params.matchCount ?? 5,
+    full_text_weight: params.fullTextWeight ?? 1.0,
+    semantic_weight: params.semanticWeight ?? 1.0,
+    filter_document_ids: filterDocumentIds,
+  });
+
+  if (error) throw error;
+
+  // 4. Map results from snake_case to camelCase
+  const results: SearchResult[] = (data ?? []).map((row: any) => ({
+    chunkId: row.chunk_id,
+    documentId: row.document_id,
+    content: row.content,
+    metadata: row.metadata,
+    similarity: row.similarity,
+    ftsRank: row.fts_rank,
+    rrfScore: row.rrf_score,
+  }));
+
+  // 5. Log document access (fire-and-forget)
+  logDocumentAccess(
+    supabase,
+    results,
+    params.query,
+    params.organizationId
+  ).catch(() => {});
+
+  return { results, queryTokenCount: tokenCount };
+}
+
+/** Resolve high-level filters (mimeTypes, dates) to document IDs. */
+async function resolveFilterDocumentIds(
+  supabase: SupabaseClient,
+  filters: NonNullable<SearchParams["filters"]>
+): Promise<string[] | null> {
+  const hasHighLevelFilters =
+    filters.mimeTypes?.length || filters.dateFrom || filters.dateTo;
+
+  if (!hasHighLevelFilters && !filters.documentIds?.length) {
+    return null;
+  }
+
+  let resolvedIds: string[] | null = null;
+
+  if (hasHighLevelFilters) {
+    let query = supabase.from("documents").select("id");
+    if (filters.mimeTypes?.length) {
+      query = query.in("mime_type", filters.mimeTypes);
+    }
+    if (filters.dateFrom) {
+      query = query.gte("created_at", filters.dateFrom);
+    }
+    if (filters.dateTo) {
+      query = query.lte("created_at", filters.dateTo);
+    }
+    const { data, error } = await query;
+    if (error) throw error;
+    resolvedIds = (data ?? []).map((d: { id: string }) => d.id);
+  }
+
+  if (filters.documentIds?.length) {
+    if (resolvedIds) {
+      // Intersect explicit IDs with resolved IDs
+      const resolvedSet = new Set(resolvedIds);
+      resolvedIds = filters.documentIds.filter((id) => resolvedSet.has(id));
+    } else {
+      resolvedIds = [...filters.documentIds];
+    }
+  }
+
+  return resolvedIds;
+}
+
+/** Log which documents were accessed by a search query. Fire-and-forget. */
+async function logDocumentAccess(
+  supabase: SupabaseClient,
+  results: SearchResult[],
+  queryText: string,
+  organizationId: string
+): Promise<void> {
+  if (results.length === 0) return;
+
+  // Group chunks by document
+  const docChunks = new Map<string, number>();
+  for (const result of results) {
+    docChunks.set(
+      result.documentId,
+      (docChunks.get(result.documentId) ?? 0) + 1
+    );
+  }
+
+  const rows = Array.from(docChunks.entries()).map(
+    ([documentId, chunksReturned]) => ({
+      organization_id: organizationId,
+      document_id: documentId,
+      query_text: queryText,
+      chunks_returned: chunksReturned,
+    })
+  );
+
+  await supabase.from("document_access_logs").insert(rows);
 }
