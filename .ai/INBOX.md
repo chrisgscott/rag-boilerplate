@@ -12,12 +12,10 @@ Triage weekly or at phase boundaries.
 - [ ] LegalTech vertical edition (second vertical after PropTech)
 - [ ] InsurTech vertical edition
 - [ ] Smart model routing (cheap model for simple queries, powerful for complex)
-- [ ] Supabase Realtime for document processing status (replace polling)
 - [ ] Document versioning and diff tracking
 - [ ] Agentic RAG with multiple retrieval tools
 - [ ] Multi-query / HyDE retrieval for ambiguous queries
 - [ ] Course/educational content layer
-- [ ] OCR support for scanned PDFs
 - [ ] REST API routes for headless/external frontend integration (search, documents, chat) — lets developers build any frontend on top
 - [ ] MCP server implementation — expose RAG operations (search, ingest, chat) as MCP tools so AI clients (Claude Desktop, Cursor, etc.) can interact directly
 
@@ -25,7 +23,9 @@ Triage weekly or at phase boundaries.
 
 | Item | Decision | Destination |
 |------|----------|-------------|
-| *Nothing triaged yet* | | |
+| Docling for document parsing | Adopted in Phase 2.5 | Python service at `services/ingestion/` |
+| OCR support for scanned PDFs | Included with Docling | Docling has built-in OCR — no extra work needed |
+| Supabase Realtime for status | Deferred | Polling (3s) works fine for now — revisit if UX feedback warrants it |
 
 ---
 *Review at the end of each phase*

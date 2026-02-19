@@ -5,47 +5,64 @@
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                      Frontend (Vercel)                        │
-│  Next.js 15 (App Router) + ShadCN/UI + TailwindCSS          │
+│  Next.js 16 (App Router) + ShadCN/UI + TailwindCSS          │
 │  Vercel AI SDK (streaming, multi-provider)                   │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-                      ▼
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+                       ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                   Supabase (Single Project)                   │
+│                   Supabase (Cloud)                            │
 │                                                               │
 │  ┌──────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐ │
-│  │   Auth   │  │  Storage  │  │  Postgres  │  │   Edge    │ │
-│  │  (SSR)   │  │  (Files)  │  │ + pgvector │  │ Functions │ │
+│  │   Auth   │  │  Storage  │  │  Postgres  │  │   pgmq    │ │
+│  │  (SSR)   │  │  (Files)  │  │ + pgvector │  │  (Queues) │ │
 │  └──────────┘  └───────────┘  │ + RLS      │  └───────────┘ │
 │                               │ + tsvector │                 │
+│                               │ + pg_cron  │                 │
 │                               └───────────┘                  │
-└─────────────────────────────────────────────────────────────┘
-                      │
-                      ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    External APIs                              │
-│  OpenAI (embeddings) · Claude/OpenAI (generation)            │
-│  Optional: Cohere (reranking)                                │
-└─────────────────────────────────────────────────────────────┘
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+              ┌────────┴────────┐
+              ▼                 ▼
+┌──────────────────┐  ┌────────────────────────────────────┐
+│   External APIs  │  │    Ingestion Service (Render)       │
+│  OpenAI (embed)  │  │    Python/FastAPI + Docling          │
+│  Claude (gen)    │  │    Polls pgmq → parse → chunk →     │
+│                  │  │    embed → upsert to Postgres        │
+└──────────────────┘  └────────────────────────────────────┘
 ```
+
+### 3-Service Architecture
+
+| Service | Tech | Hosting | Responsibility |
+|---------|------|---------|----------------|
+| Frontend | Next.js 16 | Vercel | UI, auth, file upload, query-time embedding, chat |
+| Backend | Supabase | Supabase Cloud | Auth, storage, Postgres, pgvector, pgmq queues |
+| Ingestion | Python/FastAPI | Render | Document parsing (Docling), chunking, embedding, upsert |
+
+**Integration pattern:** Supabase is the sole integration point — no direct Next.js ↔ Python communication. Next.js enqueues jobs via `supabase.rpc('enqueue_ingestion')`, Python worker polls the pgmq queue.
 
 ## Technology Stack
 
 | Layer | Technology | Rationale |
 |-------|------------|-----------|
-| Scaffolding | `create-next-app -e with-supabase` | Auth, middleware, Supabase clients pre-configured |
-| Frontend Framework | Next.js 15 (App Router) | Server Components, Server Actions, streaming |
+| Scaffolding | `create-next-app -e with-supabase` | Auth, proxy.ts, Supabase clients pre-configured |
+| Frontend Framework | Next.js 16 (App Router) | Server Components, Server Actions, streaming |
 | UI Components | ShadCN/UI | Accessible, customizable, Tailwind-based |
 | Styling | TailwindCSS | Utility-first, consistent design system |
 | Database | Supabase Postgres | Managed, RLS, real-time, pgvector extension |
 | Vector Search | pgvector (HNSW) | Integrated with Postgres — no separate vector DB |
 | Full-Text Search | Postgres tsvector | Built-in BM25, generated columns |
+| Job Queue | pgmq (Supabase Queues) | Postgres-native message queue with visibility timeout, DLQ |
+| Scheduled Jobs | pg_cron | Stale job cleanup every 5 min |
 | Authentication | Supabase Auth (SSR) | Pre-configured by starter template |
 | File Storage | Supabase Storage | S3-compatible, integrated with RLS |
+| Document Parsing | Docling (Python) | 97.9% table accuracy, OCR, PDF/DOCX/HTML/MD support |
 | LLM Integration | Vercel AI SDK | Provider-agnostic (Claude, OpenAI), streaming |
 | Embeddings | OpenAI text-embedding-3-small | $0.02/1M tokens, 1536 dims, widely supported |
 | Type Safety | TypeScript + Zod | End-to-end type safety, runtime validation |
-| Hosting | Vercel | Optimized for Next.js, edge functions |
+| Frontend Hosting | Vercel | Optimized for Next.js |
+| Ingestion Hosting | Render | Python service with persistent process for queue polling |
 
 ## Project Structure
 
@@ -53,118 +70,66 @@
 rag-boilerplate/
 ├── app/
 │   ├── auth/                        # Auth pages (from Supabase template)
-│   │   ├── confirm/route.ts
-│   │   ├── login/page.tsx
-│   │   ├── sign-up/page.tsx
-│   │   ├── forgot-password/page.tsx
-│   │   ├── update-password/page.tsx
-│   │   ├── sign-up-success/page.tsx
-│   │   └── error/page.tsx
 │   ├── (dashboard)/                 # Protected app pages
 │   │   ├── layout.tsx               # Dashboard shell with sidebar
-│   │   ├── page.tsx                 # Dashboard home / chat
-│   │   ├── documents/
-│   │   │   ├── page.tsx             # Document management
-│   │   │   ├── [id]/page.tsx        # Document detail / chunks
-│   │   │   └── actions.ts           # Upload, delete server actions
-│   │   ├── chat/
-│   │   │   ├── page.tsx             # Chat interface
-│   │   │   └── [id]/page.tsx        # Conversation detail
-│   │   ├── eval/
-│   │   │   ├── page.tsx             # Evaluation dashboard
-│   │   │   ├── test-sets/
-│   │   │   │   └── page.tsx         # Manage golden test sets
-│   │   │   └── actions.ts
-│   │   ├── usage/
-│   │   │   └── page.tsx             # Cost tracking dashboard
-│   │   └── settings/
-│   │       ├── page.tsx             # Organization settings
-│   │       └── actions.ts
+│   │   ├── page.tsx                 # Dashboard home
+│   │   └── documents/
+│   │       ├── page.tsx             # Document management
+│   │       └── actions.ts           # Upload, delete + enqueue_ingestion
 │   ├── api/
-│   │   ├── chat/route.ts            # Vercel AI SDK streaming endpoint
-│   │   ├── ingest/route.ts          # Document ingestion webhook
-│   │   └── webhooks/                # External webhooks
+│   │   └── chat/route.ts            # Vercel AI SDK streaming (future)
 │   ├── layout.tsx                   # Root layout
 │   └── page.tsx                     # Landing page
 ├── components/
-│   ├── ui/                          # ShadCN components
+│   ├── ui/                          # ShadCN components (new-york style)
 │   ├── layout/
-│   │   ├── app-shell.tsx            # Dashboard shell
 │   │   ├── app-sidebar.tsx          # Navigation sidebar
 │   │   └── page-header.tsx
-│   ├── chat/
-│   │   ├── chat-interface.tsx       # Main chat component
-│   │   ├── message-bubble.tsx
-│   │   ├── source-citation.tsx
-│   │   └── chat-input.tsx
-│   ├── documents/
-│   │   ├── upload-form.tsx
-│   │   ├── document-list.tsx
-│   │   └── processing-status.tsx
-│   └── eval/
-│       ├── test-set-form.tsx
-│       ├── eval-results.tsx
-│       └── metric-card.tsx
+│   └── documents/
+│       ├── upload-form.tsx          # Drag-and-drop upload (PDF/MD/TXT/HTML/DOCX)
+│       └── document-list.tsx        # Document table with status polling
 ├── lib/
 │   ├── supabase/
-│   │   ├── client.ts                # Browser client (from template)
-│   │   ├── server.ts                # Server client (from template)
-│   │   └── proxy.ts                 # Proxy client (from template)
-│   ├── rag/
-│   │   ├── chunker.ts               # Recursive text chunking
-│   │   ├── embedder.ts              # OpenAI embedding wrapper
-│   │   ├── search.ts                # Hybrid search orchestration
-│   │   ├── prompt.ts                # System prompt templates
-│   │   └── cost.ts                  # Cost calculation utilities
-│   ├── parsers/
-│   │   ├── pdf.ts                   # PDF parsing
-│   │   ├── markdown.ts              # Markdown parsing
-│   │   └── index.ts                 # Parser registry
-│   ├── eval/
-│   │   ├── runner.ts                # Evaluation runner
-│   │   └── metrics.ts               # Precision, Recall, MRR
-│   ├── utils.ts                     # cn() and general utilities
-│   └── validations/
-│       ├── document.ts              # Document upload validation
-│       ├── chat.ts                  # Chat input validation
-│       └── eval.ts                  # Test set validation
-├── hooks/
-│   ├── use-chat.ts                  # Chat hook wrapping AI SDK
-│   └── use-documents.ts             # Document state management
+│   │   ├── client.ts                # Browser client
+│   │   ├── server.ts                # Server client
+│   │   └── proxy.ts                 # Proxy client (Next.js 16 auth)
+│   └── rag/
+│       └── embedder.ts              # OpenAI embedding wrapper (query-time only)
+├── services/
+│   └── ingestion/                   # Python/FastAPI ingestion service
+│       ├── src/
+│       │   ├── config.py            # pydantic-settings config
+│       │   ├── main.py              # FastAPI app with worker loop
+│       │   ├── parser.py            # Docling document parser
+│       │   ├── chunker.py           # Recursive text chunker
+│       │   ├── embedder.py          # OpenAI embedding wrapper (batch)
+│       │   └── worker.py            # Queue worker (pgmq → pipeline)
+│       ├── tests/                   # 27 Python tests
+│       ├── pyproject.toml
+│       └── Dockerfile
 ├── types/
-│   ├── database.types.ts            # Generated from Supabase
-│   └── rag.ts                       # RAG-specific types
+│   └── database.types.ts            # Generated from Supabase
 ├── supabase/
 │   ├── migrations/
-│   │   ├── 00001_extensions.sql
-│   │   ├── 00002_profiles.sql
-│   │   ├── 00003_organizations.sql
-│   │   ├── 00004_documents.sql
-│   │   ├── 00005_conversations.sql
-│   │   ├── 00006_eval.sql
-│   │   ├── 00007_usage.sql
-│   │   ├── 00008_rls_policies.sql
-│   │   └── 00009_rpc_functions.sql
-│   ├── seed.sql                     # PropTech demo data
+│   │   ├── 00001_extensions.sql     # pgvector, moddatetime
+│   │   ├── 00002_profiles.sql       # User profiles
+│   │   ├── 00003_organizations.sql  # Multi-tenant orgs
+│   │   ├── 00004_security.sql       # Security hardening
+│   │   ├── 00005_documents.sql      # Documents table + RLS
+│   │   ├── 00006_document_chunks.sql # Chunks + HNSW + GIN + RLS
+│   │   ├── 00007_storage_policies.sql # Storage bucket RLS
+│   │   ├── 00008_ingestion_queue.sql # pgmq queue + enqueue RPC
+│   │   └── 00009_ingestion_cron.sql  # pg_cron stale job cleanup
 │   └── config.toml
-├── demo/
-│   ├── sample-lease.pdf             # PropTech demo document
-│   ├── sample-hoa-rules.pdf         # PropTech demo document
-│   └── sample-disclosure.md         # PropTech demo document
 ├── tests/
-│   ├── integration/
-│   │   ├── cross-tenant.test.ts     # Cross-tenant isolation tests
-│   │   └── ingestion.test.ts
 │   └── unit/
-│       ├── chunker.test.ts
-│       ├── search.test.ts
-│       └── cost.test.ts
+│       └── embedder.test.ts         # 7 TypeScript embedder tests
 ├── .env.example
-├── .env.local                       # gitignored
 ├── package.json
 ├── tsconfig.json
 ├── tailwind.config.ts
-└── README.md
+├── docker-compose.dev.yml           # Local dev (ingestion service)
+└── PLAN.md                          # Session-aware progress tracker
 ```
 
 ## Key Architectural Decisions
@@ -203,40 +168,51 @@ rag-boilerplate/
 - LLM generation is provider-agnostic via Vercel AI SDK (swap Claude ↔ OpenAI with one line)
 - Embedding model is tracked per chunk — if you switch models, you know which chunks need re-embedding
 
-### Decision 7: Async Document Ingestion
+### Decision 7: Async Document Ingestion via pgmq
 - File upload returns immediately with "pending" status
-- Processing happens asynchronously (parse → chunk → embed → upsert)
+- Jobs enqueued via `supabase.rpc('enqueue_ingestion')` to pgmq queue
+- Python worker polls queue, processes: Docling parse → chunk → embed → upsert
 - Status tracked per document: pending → processing → complete → error
-- UI polls for status updates (or uses Supabase Realtime subscription)
+- UI polls for status updates (every 3 seconds when docs are in progress)
+- Retry handling: pgmq visibility timeout (5 min), max 3 retries, then DLQ
+- pg_cron cleanup: marks stuck "processing" docs as "error" every 5 min
+
+### Decision 8: Python Service for Ingestion (3-Service Architecture)
+- Docling requires Python — replaces TypeScript unpdf parser
+- Full pipeline runs in Python: parse + chunk + embed + upsert
+- Eliminates Vercel serverless timeout risk (60s limit on free tier)
+- Supabase is sole integration point — no direct Next.js ↔ Python communication
+- Service role key used in Python service only (bypasses RLS for worker operations)
+- Supported formats: PDF, Markdown, Plain text, DOCX, HTML
 
 ## Data Flow
 
 ### Document Ingestion Flow
 ```
-[File Upload] → Supabase Storage
-      │
-      ▼
-[Create document record] → status: "pending"
-      │
-      ▼
-[Trigger processing] → API route or Edge Function
-      │
-      ├── [Parse document] → Extract clean text (PDF → text, MD → text)
-      │       └── Tables extracted as complete units
-      │
-      ├── [Chunk text] → Recursive splitting, 400-512 tokens, 15% overlap
-      │       └── Each chunk gets: document title + section header prepended
-      │
-      ├── [Generate embeddings] → OpenAI text-embedding-3-small
-      │       └── Batch API for multiple chunks
-      │
-      ├── [Upsert to Postgres] → document_chunks table
-      │       ├── content (text)
-      │       ├── embedding (vector(1536))
-      │       ├── fts (tsvector, auto-generated)
-      │       └── metadata (jsonb)
-      │
-      └── [Update document status] → status: "complete"
+Next.js (Vercel)                     Supabase                       Python Service (Render)
+─────────────────                    ────────                       ───────────────────────
+[File Upload] ──────────────▶ Storage (documents bucket)
+[Create document record] ───▶ Postgres (status: "pending")
+[enqueue_ingestion RPC] ────▶ pgmq: ingestion_jobs queue
+                                                                    Worker loop (every 5s)
+                              pgmq.read() ◀─────────────────────── poll queue
+                                                                    Download from Storage
+                                                                    Docling parse (PDF/DOCX/HTML/MD)
+                                                                      └─ Tables → markdown, sections extracted
+                                                                    Recursive chunk (512 tokens, 15% overlap)
+                                                                      └─ Header context prepended
+                                                                    OpenAI embed (batch 100)
+                              Postgres ◀────────────────────────── INSERT chunks + vectors
+                              (document_chunks)
+                              Postgres ◀────────────────────────── UPDATE status → complete
+                              (documents)
+                              pgmq.archive() ◀──────────────────── acknowledge message
+UI polls ◀──────────────────── SELECT status (every 3s)
+
+Retry handling:
+  - pgmq visibility timeout (5 min) — messages reappear if worker crashes
+  - Max 3 retries — then moved to ingestion_jobs_dlq
+  - pg_cron cleanup — marks stuck "processing" docs as "error" (every 5 min)
 ```
 
 ### Query Flow (Hybrid Search + Generation)
@@ -355,4 +331,4 @@ Request → Supabase Auth (JWT) → RLS Policy → auth.uid()
 
 ---
 *Generated by spec-driven-dev skill*
-*Last updated: 2026-02-18*
+*Last updated: 2026-02-19*
