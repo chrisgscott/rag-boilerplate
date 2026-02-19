@@ -3,7 +3,7 @@
 ## Current Status
 - **Phase:** Phase 3 COMPLETE, Phase 4 next
 - **Progress:** 42/42+ tasks (Phase 1 + Phase 2 + Phase 2.5 + Phase 3 all done)
-- **Branch:** `phase-3-search` (worktree at `.worktrees/phase-3-search`)
+- **Branch:** `main` (all feature branches merged and deleted)
 - **Repo:** `https://github.com/chrisgscott/rag-boilerplate.git`
 - **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 11 migrations applied, user seeded
 - **Phase 3 Plan:** `docs/plans/2026-02-19-phase-3-search-retrieval-plan.md` (10 tasks, TDD)
@@ -61,10 +61,9 @@
 - **PROJECT_PLAN.md**: All Phase 3 tasks (3.1–3.6) marked done
 
 ## Next Steps
-1. **Merge `phase-3-search` branch** to `main`
-2. **Phase 4: Chat Interface** (tasks 4.1–4.9) — streaming chat with source citations
-3. **Phase 5: Evaluation & Cost Tracking** (tasks 5.1–5.8)
-4. **Phase 6: PropTech Demo & Polish** (tasks 6.1–6.8)
+1. **Phase 4: Chat Interface** (tasks 4.1–4.9) — streaming chat with source citations
+2. **Phase 5: Evaluation & Cost Tracking** (tasks 5.1–5.8)
+3. **Phase 6: PropTech Demo & Polish** (tasks 6.1–6.8)
 
 ## Key Decisions
 - No `src/` directory — root-level app/, components/, lib/ (matches scaffold convention)
