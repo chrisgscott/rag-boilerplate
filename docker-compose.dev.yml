@@ -1,0 +1,22 @@
+# Optional: run the ingestion service locally via Docker
+# Supabase runs via `supabase start`, Next.js via `pnpm dev`
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml up --build
+#
+# Or run the Python service directly (faster for development):
+#   cd services/ingestion && source .venv/bin/activate && uvicorn src.main:app --port 8000
+services:
+  ingestion:
+    build: ./services/ingestion
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./services/ingestion/.env
+    environment:
+      # Override for Docker networking (host.docker.internal reaches host services)
+      - SUPABASE_URL=http://host.docker.internal:54321
+      - DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:54322/postgres
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

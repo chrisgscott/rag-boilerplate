@@ -12,7 +12,6 @@ Triage weekly or at phase boundaries.
 - [ ] LegalTech vertical edition (second vertical after PropTech)
 - [ ] InsurTech vertical edition
 - [ ] Smart model routing (cheap model for simple queries, powerful for complex)
-- [ ] Supabase Realtime for document processing status (replace polling)
 - [ ] Document versioning and diff tracking
 - [ ] Agentic RAG with multiple retrieval tools
 - [ ] Multi-query / HyDE retrieval for ambiguous queries
@@ -24,9 +23,9 @@ Triage weekly or at phase boundaries.
 
 | Item | Decision | Destination |
 |------|----------|-------------|
-| OCR support for scanned PDFs | Adopted — Docling includes OCR | Phase 2.5 (Docling migration) |
-| Supabase Realtime for ingestion status | Deferred — polling works fine | Post-MVP backlog |
-| Queue-based ingestion | Adopted — pgmq (Supabase Queues) | Phase 2.5 (Decision #010) |
+| Docling for document parsing | Adopted in Phase 2.5 | Python service at `services/ingestion/` |
+| OCR support for scanned PDFs | Included with Docling | Docling has built-in OCR — no extra work needed |
+| Supabase Realtime for status | Deferred | Polling (3s) works fine for now — revisit if UX feedback warrants it |
 
 ---
 *Review at the end of each phase*

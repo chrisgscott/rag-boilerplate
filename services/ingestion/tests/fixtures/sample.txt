@@ -1,0 +1,6 @@
+This is a sample plain text document for testing purposes.
+
+It contains multiple paragraphs with different content.
+
+The property at 123 Main Street has been inspected and meets all building code requirements.
+All units have been verified for compliance with local housing regulations.
