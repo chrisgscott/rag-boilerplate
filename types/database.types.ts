@@ -34,6 +34,119 @@ export type Database = {
   }
   public: {
     Tables: {
+      document_chunks: {
+        Row: {
+          chunk_index: number
+          content: string
+          created_at: string
+          document_id: string
+          embedding: string | null
+          fts: unknown | null
+          id: number
+          metadata: Json | null
+          organization_id: string
+          token_count: number | null
+        }
+        Insert: {
+          chunk_index: number
+          content: string
+          created_at?: string
+          document_id: string
+          embedding?: string | null
+          fts?: unknown | null
+          id?: never
+          metadata?: Json | null
+          organization_id: string
+          token_count?: number | null
+        }
+        Update: {
+          chunk_index?: number
+          content?: string
+          created_at?: string
+          document_id?: string
+          embedding?: string | null
+          fts?: unknown | null
+          id?: never
+          metadata?: Json | null
+          organization_id?: string
+          token_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_chunks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_chunks_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          chunk_count: number | null
+          content_hash: string | null
+          created_at: string
+          error_message: string | null
+          file_size: number | null
+          id: string
+          metadata: Json | null
+          mime_type: string
+          name: string
+          organization_id: string
+          status: string
+          storage_path: string
+          updated_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          chunk_count?: number | null
+          content_hash?: string | null
+          created_at?: string
+          error_message?: string | null
+          file_size?: number | null
+          id?: string
+          metadata?: Json | null
+          mime_type: string
+          name: string
+          organization_id: string
+          status?: string
+          storage_path: string
+          updated_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          chunk_count?: number | null
+          content_hash?: string | null
+          created_at?: string
+          error_message?: string | null
+          file_size?: number | null
+          id?: string
+          metadata?: Json | null
+          mime_type?: string
+          name?: string
+          organization_id?: string
+          status?: string
+          storage_path?: string
+          updated_at?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_members: {
         Row: {
           created_at: string
