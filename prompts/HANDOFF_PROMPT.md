@@ -4,49 +4,61 @@
 Strategic planning for the RAG Boilerplate is complete. The specs are in `/specs/` and the plan is in `/planning/`. Your job is to implement this phase by phase.
 
 ## Read These Files First
-1. `specs/PRD.md` — What we're building and why
-2. `specs/ARCHITECTURE.md` — How it's structured, data flows, project layout
-3. `specs/DATA_MODEL.md` — Full schema, RLS policies, RPC functions
-4. `planning/PROJECT_PLAN.md` — Current phase and task list
-5. `planning/DECISIONS.md` — Key architectural decisions already made
-6. `docs/rag-design-guide.docx` — Comprehensive technical reference (chunking, search, eval, security)
+1. `PLAN.md` — Current session state, progress, and next steps
+2. `specs/PRD.md` — What we're building and why
+3. `specs/ARCHITECTURE.md` — How it's structured (3-service architecture), data flows
+4. `specs/DATA_MODEL.md` — Full schema, RLS policies, RPC functions
+5. `planning/PROJECT_PLAN.md` — Full phase/task breakdown
+6. `planning/DECISIONS.md` — Key architectural decisions already made (#001–#011)
+7. `planning/PHASE_2_5_PLAN.md` — Detailed plan for current phase (Docling ingestion)
+8. `docs/rag-design-guide.docx` — Comprehensive technical reference (chunking, search, eval, security)
+
+## Architecture (3 Services)
+```
+Next.js (Vercel)  ──▶  Supabase (Cloud)  ◀──  Python/FastAPI (Render)
+  Frontend, auth,       Auth, Storage,          Docling parse, chunk,
+  upload, search,       Postgres + pgvector,    embed, upsert to DB
+  chat streaming        pgmq queues, pg_cron
+```
+
+**Key:** Supabase is the sole integration point. No direct Next.js ↔ Python communication.
 
 ## Critical Implementation Notes
 
-### Scaffolding
-Start with `npx create-next-app . -e with-supabase`. This gives you:
-- Next.js 15 App Router
-- Supabase Auth (sign-in, sign-up, password reset)
-- Server + browser Supabase clients
-- Auth middleware
-- Environment variable setup
+### No `src/` Directory
+Root-level `app/`, `components/`, `lib/`, `types/` (matches scaffold convention).
 
-Do NOT build auth from scratch. Extend the template.
-
-### Supabase Connection
-Use the transaction pooler (port 6543) for serverless environments. This is critical for production and saves significant debugging time.
+### Auth Pattern (Next.js 16)
+- `proxy.ts` (not `middleware.ts`) for auth
+- `getClaims()` (local JWT, fast) not `getUser()` (network call)
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (not legacy ANON_KEY)
 
 ### RLS is Non-Negotiable
-Every table with organization-scoped data MUST have RLS enabled with policies. Do not defer this — implement RLS as you create each table. The `get_user_organizations()` helper function is the foundation for all tenant-scoped policies.
+Every table with organization-scoped data MUST have RLS enabled with policies. The `get_user_organizations()` helper function is the foundation for all tenant-scoped policies.
+
+### Ingestion Pipeline (Phase 2.5)
+- Next.js uploads file to Storage, creates document record, enqueues via `supabase.rpc('enqueue_ingestion')`
+- Python worker polls pgmq, processes: Docling parse → chunk → embed → upsert chunks to Postgres
+- pgmq provides visibility timeout + retries; pg_cron cleans up stale jobs
 
 ### Vector Operations via RPC
-PostgREST does not support pgvector operators directly. All vector search operations MUST be wrapped in Postgres RPC functions called via `supabase.rpc()`. These functions use SECURITY INVOKER (not DEFINER) so RLS applies automatically.
+PostgREST does not support pgvector operators. Use `supabase.rpc('hybrid_search', { ... })` with SECURITY INVOKER.
 
 ### Streaming Chat is the ONE API Route
-Use Server Actions for all mutations. The one exception is `/api/chat/route.ts` — Vercel AI SDK's `streamText()` requires a Route Handler for streaming.
+Use Server Actions for all mutations except `/api/chat/route.ts` (Vercel AI SDK streaming).
 
 ## For Each Task in the Current Phase
 
-1. Read `.ai/CONTEXT.md` for current state
+1. Read `PLAN.md` for current state
 2. Pick ONE task marked "ready" in `planning/PROJECT_PLAN.md`
 3. Implement with tests where applicable
 4. Run backpressure commands:
    ```bash
    pnpm tsc --noEmit
    pnpm lint
-   pnpm test (if tests exist for this task)
+   pnpm vitest run
    ```
-5. If all pass: mark task "done" in PROJECT_PLAN.md, update `.ai/CONTEXT.md`
+5. If all pass: mark task "done" in PROJECT_PLAN.md, update PLAN.md
 6. If any fail: debug and retry — do NOT skip tests
 7. Move to next task
 
@@ -55,7 +67,7 @@ Use Server Actions for all mutations. The one exception is `/api/chat/route.ts` 
 ### Schema/Migration Tasks
 ```bash
 supabase db reset
-supabase gen types typescript --local > src/types/database.types.ts
+pnpm db:types
 pnpm tsc --noEmit
 ```
 
@@ -66,16 +78,17 @@ pnpm lint
 pnpm build
 ```
 
-### RAG Pipeline Tasks
+### Python Service Tasks
 ```bash
-pnpm tsc --noEmit
-pnpm test src/lib/rag/
+cd services/ingestion
+pytest -v
+ruff check .
 ```
 
 ### Integration Tasks
 ```bash
 pnpm tsc --noEmit
-pnpm test tests/integration/
+pnpm vitest run
 pnpm build
 ```
 
@@ -85,10 +98,9 @@ pnpm build
 - **No scope creep** — Only implement what's in the task description
 - **RLS with every table** — Never create a table without RLS policies
 - **Test cross-tenant isolation** — After any schema change, verify tenant A can't read tenant B's data
-- **Update context** — Keep `.ai/CONTEXT.md` current after each task
 - **Log learnings** — Add gotchas to `.ai/LEARNINGS.md`
 - **Park ideas** — Out-of-scope ideas go to `.ai/INBOX.md`
-- **Follow the design guide** — `docs/rag-design-guide.docx` is the technical reference for RAG decisions (chunking strategy, HNSW params, hybrid search, etc.)
+- **Follow the design guide** — `docs/rag-design-guide.docx` is the technical reference
 
 ## Output After Each Task
 
@@ -110,3 +122,4 @@ TASK [ID] BLOCKED
 
 ---
 *Generated by spec-driven-dev skill*
+*Updated: 2026-02-19*

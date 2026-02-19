@@ -236,4 +236,94 @@ Private GitHub repo access (like ShipFa.st model)
 
 ---
 
+## Decision #009: Docling for Document Parsing
+**Date:** 2026-02-19
+**Status:** Accepted
+
+### Context
+Phase 2 used `unpdf` (TypeScript, Mozilla pdf.js wrapper) for PDF parsing. Works for simple PDFs but limited table accuracy, no OCR, and no DOCX/HTML support.
+
+### Options Considered
+1. **unpdf (current)** — JS-only, simple, but limited accuracy
+2. **Docling (IBM, MIT license)** — Python, 97.9% table accuracy, OCR, PDF/DOCX/HTML/MD
+3. **LlamaParse** — Commercial API, good accuracy, adds external dependency
+
+### Decision
+Docling. Requires a separate Python service but the accuracy and format support are decisive.
+
+### Rationale
+- 97.9% table accuracy — critical for PropTech documents (lease tables, fee schedules)
+- Built-in OCR for scanned PDFs (eliminates a post-MVP backlog item)
+- Supports PDF, DOCX, HTML, Markdown — expands boilerplate value proposition
+- MIT license — no commercial restrictions
+- Structured output with sections, headers, table extraction
+
+### Consequences
+- Requires Python service (see Decision #010)
+- Heavier Docker image (Docling downloads AI models on first run)
+- First-run cold start while models download (~1-2 min)
+
+---
+
+## Decision #010: 3-Service Architecture with pgmq
+**Date:** 2026-02-19
+**Status:** Accepted
+
+### Context
+Docling requires Python. Need to decide how to integrate a Python service with the existing Next.js + Supabase stack, and how to coordinate work between them.
+
+### Options Considered
+1. **Parse-only Python microservice** — Python just parses, returns text; Next.js handles chunk/embed/upsert
+2. **Full pipeline in Python** — Parse + chunk + embed + upsert all in Python
+3. **Supabase Edge Function** — Run parsing in Deno edge function (Docling not available)
+
+### Decision
+Full pipeline in Python, hosted on Render. Supabase Queues (pgmq) for job coordination. pg_cron for stale job cleanup.
+
+### Rationale
+- **Full pipeline eliminates Vercel timeout risk** — even embedding (the slow part) runs on Render with no time limit
+- **pgmq provides reliability** — visibility timeout (300s), automatic retries, dead letter queue
+- **Supabase as sole integration point** — Next.js → Supabase ← Python, no direct communication
+- **pg_cron handles edge cases** — marks stuck jobs as "error" after 10 min
+- **Render** — Docker hosting with persistent process (worker loop), simpler than Lambda/ECS
+
+### Consequences
+- Three services to manage (Next.js + Python + Supabase) instead of two
+- Python service needs its own deployment pipeline
+- `SUPABASE_SERVICE_ROLE_KEY` needed in Python service (bypasses RLS for chunk upserts)
+- Local dev requires running Python service alongside Next.js and Supabase
+
+---
+
+## Decision #011: Async Ingestion via Supabase Queues (replaces Decision #007)
+**Date:** 2026-02-19
+**Status:** Accepted (supersedes Decision #007)
+
+### Context
+Decision #007 chose async ingestion with fire-and-forget HTTP. This worked for Phase 2 but had no retry mechanism and no resilience. With the move to a separate Python service, a proper queue is needed.
+
+### Options Considered
+1. **Fire-and-forget HTTP (current)** — Simple, no retries
+2. **pgmq (Supabase Queues)** — Built into Supabase Postgres, SQL-native
+3. **Inngest / Bull / SQS** — External queue services
+
+### Decision
+pgmq (Supabase Queues) with pg_cron for housekeeping.
+
+### Rationale
+- **Already in Supabase** — no additional service to manage
+- **SQL-native** — `pgmq.send()`, `pgmq.read()`, `pgmq.archive()` are just SQL
+- **Visibility timeout** — messages auto-reappear if worker crashes
+- **Retry counting** — `read_ct` field tracks attempts, enables DLQ logic
+- **RPC wrapper** — `enqueue_ingestion()` function enforces RLS (user must own the document)
+- **pg_cron** — catches edge cases where worker dies without releasing the message
+
+### Consequences
+- pgmq extension must be enabled in Supabase (available on hosted Supabase)
+- Worker must explicitly archive/delete messages after processing
+- DLQ is manual (check `read_ct`, move to separate queue)
+- pgmq_public schema uses different parameter names than pgmq schema
+
+---
+
 *Add new decisions as they arise during development*

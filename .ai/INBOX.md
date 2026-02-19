@@ -17,7 +17,6 @@ Triage weekly or at phase boundaries.
 - [ ] Agentic RAG with multiple retrieval tools
 - [ ] Multi-query / HyDE retrieval for ambiguous queries
 - [ ] Course/educational content layer
-- [ ] OCR support for scanned PDFs
 - [ ] REST API routes for headless/external frontend integration (search, documents, chat) — lets developers build any frontend on top
 - [ ] MCP server implementation — expose RAG operations (search, ingest, chat) as MCP tools so AI clients (Claude Desktop, Cursor, etc.) can interact directly
 
@@ -25,7 +24,9 @@ Triage weekly or at phase boundaries.
 
 | Item | Decision | Destination |
 |------|----------|-------------|
-| *Nothing triaged yet* | | |
+| OCR support for scanned PDFs | Adopted — Docling includes OCR | Phase 2.5 (Docling migration) |
+| Supabase Realtime for ingestion status | Deferred — polling works fine | Post-MVP backlog |
+| Queue-based ingestion | Adopted — pgmq (Supabase Queues) | Phase 2.5 (Decision #010) |
 
 ---
 *Review at the end of each phase*

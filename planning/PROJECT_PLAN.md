@@ -1,9 +1,9 @@
 # Project Plan: RAG Boilerplate
 
 ## Overview
-- **Current Phase:** 1 of 6 (Complete — pending security review)
-- **Progress:** 10/42 tasks (24%)
-- **Status:** Phase 1 complete
+- **Current Phase:** 2.5 of 6 (Docling Ingestion Service — planning complete, ready to execute)
+- **Progress:** 23/42+ tasks (Phase 1 + Phase 2 done, Phase 2.5 planned)
+- **Status:** Phase 2 complete, Phase 2.5 planned
 - **Target:** MVP in 6 weeks
 
 ## Phase 1: Foundation ✅
@@ -36,35 +36,68 @@
 
 ---
 
-## Phase 2: Document Ingestion Pipeline 📋
+## Phase 2: Document Ingestion Pipeline ✅
 
 **Goal:** Upload documents, parse, chunk, embed, store with full-text search
 
 | ID | Task | Status | Complexity | Notes |
 |----|------|--------|------------|-------|
-| 2.1 | Create documents table + RLS policies | blocked | S | Needs Phase 1 |
-| 2.2 | Create document_chunks table + HNSW index + GIN index + RLS | blocked | M | Needs 2.1 |
-| 2.3 | Supabase Storage bucket for document uploads | blocked | S | Needs Phase 1 |
-| 2.4 | Document upload UI (drag-and-drop, file picker) | blocked | M | Needs 2.3 |
-| 2.5 | Document list page with status indicators | blocked | M | Needs 2.1 |
-| 2.6 | PDF parser implementation (extract text, preserve tables) | blocked | M | Research: Docling vs LlamaParse vs pdf-parse |
-| 2.7 | Markdown parser implementation (header hierarchy) | blocked | S | |
-| 2.8 | Recursive text chunker (400-512 tokens, 15% overlap) | blocked | M | Core RAG component |
-| 2.9 | OpenAI embedding wrapper (text-embedding-3-small, batch support) | blocked | S | |
-| 2.10 | Async ingestion pipeline (parse → chunk → embed → upsert) | blocked | L | Orchestrates 2.6-2.9 |
-| 2.11 | Document status tracking (pending → processing → complete → error) | blocked | S | Needs 2.10 |
-| 2.12 | Document deletion with cascade (delete all chunks + embeddings) | blocked | S | Needs 2.2 |
-| 2.13 | Content hash tracking for delta processing | blocked | S | Prevents re-embedding unchanged docs |
+| 2.1 | Create documents table + RLS policies | done | S | Migration 00005 |
+| 2.2 | Create document_chunks table + HNSW index + GIN index + RLS | done | M | Migration 00006 |
+| 2.3 | Supabase Storage bucket for document uploads | done | S | Migration 00007 + config.toml |
+| 2.4 | Document upload UI (drag-and-drop, file picker) | done | M | upload-form.tsx + server actions |
+| 2.5 | Document list page with status indicators | done | M | document-list.tsx with polling |
+| 2.6 | PDF parser implementation (extract text, preserve tables) | done | M | unpdf — *being replaced by Docling in Phase 2.5* |
+| 2.7 | Markdown parser implementation (header hierarchy) | done | S | *being replaced by Docling in Phase 2.5* |
+| 2.8 | Recursive text chunker (400-512 tokens, 15% overlap) | done | M | *being ported to Python in Phase 2.5* |
+| 2.9 | OpenAI embedding wrapper (text-embedding-3-small, batch support) | done | S | embedQuery stays in TS; embedTexts moves to Python |
+| 2.10 | Async ingestion pipeline (parse → chunk → embed → upsert) | done | L | *being replaced by Python service in Phase 2.5* |
+| 2.11 | Document status tracking (pending → processing → complete → error) | done | S | Status polling every 3s |
+| 2.12 | Document deletion with cascade (delete all chunks + embeddings) | done | S | Processing guard included |
+| 2.13 | Content hash tracking for delta processing | done | S | SHA-256 during upload |
 
 **Phase 2 Checklist:**
-- [ ] Can upload a PDF and see it appear in document list
-- [ ] Document shows processing status (pending → complete)
-- [ ] Chunks are created with embeddings in document_chunks table
-- [ ] Full-text search index (tsvector) is populated
-- [ ] Deleting a document removes all chunks
-- [ ] RLS prevents cross-tenant document access
+- [x] Can upload a PDF and see it appear in document list
+- [x] Document shows processing status (pending → complete)
+- [x] Chunks are created with embeddings in document_chunks table
+- [x] Full-text search index (tsvector) is populated
+- [x] Deleting a document removes all chunks
+- [x] RLS prevents cross-tenant document access
+- [x] 29 tests passing, build clean
 
 **CHECKPOINT: Security Review** — Verify RLS on documents and document_chunks tables
+
+---
+
+## Phase 2.5: Docling Ingestion Service 📋
+
+**Goal:** Replace TypeScript ingestion pipeline with Python/FastAPI service using Docling + pgmq
+
+See `planning/PHASE_2_5_PLAN.md` for detailed implementation plan (12 tasks).
+
+| ID | Task | Status | Complexity | Notes |
+|----|------|--------|------------|-------|
+| 2.5.1 | Supabase Queue Infrastructure (pgmq migration + enqueue RPC) | ready | S | Migration 00008 |
+| 2.5.2 | pg_cron Housekeeping Jobs | ready | S | Migration 00009 |
+| 2.5.3 | Update Next.js to Use Queue | ready | M | Replace fire-and-forget with RPC |
+| 2.5.4 | Python Service Scaffold (FastAPI + Docling + Dockerfile) | ready | M | services/ingestion/ |
+| 2.5.5 | Docling Document Parser (TDD) | blocked | L | Needs 2.5.4 |
+| 2.5.6 | Python Recursive Chunker (TDD) | blocked | M | Port from TypeScript |
+| 2.5.7 | Python Embedding Wrapper (TDD) | blocked | S | DI pattern |
+| 2.5.8 | Queue Worker / Pipeline Orchestrator | blocked | L | Needs 2.5.5-2.5.7 |
+| 2.5.9 | Expand Upload UI for New Formats (DOCX, HTML) | ready | S | |
+| 2.5.10 | Clean Up Replaced TypeScript Code | blocked | S | Needs 2.5.8 |
+| 2.5.11 | Update Documentation | blocked | S | Needs 2.5.10 |
+| 2.5.12 | Local Development Docker Compose | ready | S | Optional |
+
+**Phase 2.5 Checklist:**
+- [ ] pgmq queue operational, enqueue RPC works
+- [ ] Python service starts and passes health check
+- [ ] Python parser handles PDF, Markdown, Plain text, DOCX, HTML
+- [ ] All Python tests pass (parser, chunker, embedder, worker)
+- [ ] TypeScript embedder tests still pass (7 tests)
+- [ ] Next.js build clean after TypeScript code cleanup
+- [ ] End-to-end: upload PDF → pending → processing → complete
 
 ---
 

@@ -53,7 +53,7 @@ A production-ready RAG boilerplate built on Next.js 15 + Supabase + pgvector. De
 ## Session Protocol
 
 ### At Session Start
-1. Read `.ai/CONTEXT.md` for current state
+1. Read `PLAN.md` (root) for current state
 2. Check `planning/PROJECT_PLAN.md` for current task
 3. Review relevant `specs/` files for the task
 4. Check `docs/rag-design-guide.docx` for RAG-specific guidance
@@ -67,7 +67,7 @@ A production-ready RAG boilerplate built on Next.js 15 + Supabase + pgvector. De
 
 ### At Session End
 1. Update `planning/PROJECT_PLAN.md` with completed tasks
-2. Update `.ai/CONTEXT.md` with current state summary
+2. Update `PLAN.md` with current state summary
 3. Commit with message referencing task ID
 
 ## Commands
@@ -109,7 +109,9 @@ Session-aware progress tracker. Updated at the end of each session with current 
 
 ### `.ai/` — Session Context (AI-facing)
 Ephemeral, session-updated files for AI assistants. Updated during and after every session.
-- `CONTEXT.md` — Current project state snapshot (phase, what's built, gotchas, next up). Update at session end.
+- `LEARNINGS.md` — Gotchas, patterns, and non-obvious knowledge discovered during development
+- `INBOX.md` — Out-of-scope ideas parked for triage
+- ~~`CONTEXT.md`~~ — **Deleted** (redundant with root `PLAN.md`)
 - `INBOX.md` — Out-of-scope ideas captured during development. Triage at phase boundaries.
 - `LEARNINGS.md` — Gotchas, non-obvious patterns, and discoveries. Append as you learn them.
 
