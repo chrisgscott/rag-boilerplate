@@ -156,7 +156,12 @@ export async function POST(req: Request) {
 
   // Convert incoming messages (which may be UIMessage format with parts)
   // to ModelMessage format expected by streamText
-  const modelMessages = await convertToModelMessages(messages);
+  let modelMessages;
+  try {
+    modelMessages = await convertToModelMessages(messages);
+  } catch {
+    return new Response("Invalid message format", { status: 400 });
+  }
 
   const result = streamText({
     model: provider(modelId),
@@ -170,7 +175,7 @@ export async function POST(req: Request) {
           role: "assistant",
           content: text,
           parts: [{ type: "text", text }],
-          sources: relevantResults.map((r: any) => ({
+          sources: relevantResults.map((r) => ({
             documentId: r.documentId,
             chunkId: r.chunkId,
             content: r.content,

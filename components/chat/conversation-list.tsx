@@ -27,7 +27,8 @@ export function ConversationList({
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    await deleteConversation(id);
+    const result = await deleteConversation(id);
+    if ("error" in result) return;
     setConversations((prev) => prev.filter((c) => c.id !== id));
   };
 

@@ -99,13 +99,12 @@ export function ChatInterface({
         },
         // Transform UIMessages to include `content` field expected by the route handler.
         // The route reads `messages[].content` (flat string), but the SDK sends `parts`.
-        prepareSendMessagesRequest: ({ messages: msgs, body, ...rest }) => {
+        prepareSendMessagesRequest: ({ messages: msgs, body }) => {
           const transformedMessages = msgs.map((msg) => ({
             ...msg,
             content: getMessageText(msg),
           }));
           return {
-            ...rest,
             body: {
               ...(typeof body === "object" && body !== null ? body : {}),
               messages: transformedMessages,
