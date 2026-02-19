@@ -96,6 +96,17 @@ export async function uploadDocument(formData: FormData) {
     return { error: "Failed to create document record" };
   }
 
+  // Enqueue ingestion job via pgmq (Python worker will pick it up)
+  const { error: queueError } = await supabase.rpc("enqueue_ingestion", {
+    p_document_id: documentId,
+  });
+
+  if (queueError) {
+    console.error("Failed to enqueue ingestion:", queueError);
+    // Don't fail the upload — document is saved, just not queued
+    // The pg_cron retry job will pick it up
+  }
+
   revalidatePath("/documents");
   return { success: true, documentId };
 }

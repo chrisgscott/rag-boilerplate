@@ -71,17 +71,6 @@ export function UploadForm() {
       toast.success(`"${selectedFile.name}" uploaded — processing started`);
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
-
-      // Trigger async ingestion (fire-and-forget)
-      if (result.documentId) {
-        fetch("/api/ingest", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ documentId: result.documentId }),
-        }).catch(() => {
-          // Ingestion failure is handled server-side via status tracking
-        });
-      }
     }
 
     setIsUploading(false);

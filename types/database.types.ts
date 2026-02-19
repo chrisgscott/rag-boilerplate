@@ -1,3 +1,4 @@
+Connecting to db 5432
 export type Json =
   | string
   | number
@@ -237,6 +238,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_stale_ingestion_jobs: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      enqueue_ingestion: {
+        Args: { p_document_id: string }
+        Returns: number
+      }
       get_user_organizations: {
         Args: Record<PropertyKey, never>
         Returns: string[]
@@ -365,3 +374,5 @@ export const Constants = {
   },
 } as const
 
+A new version of Supabase CLI is available: v2.75.0 (currently installed v2.24.3)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
