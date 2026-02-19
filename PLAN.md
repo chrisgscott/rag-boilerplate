@@ -29,22 +29,23 @@ Migrate ingestion from TypeScript/Next.js to Python/FastAPI with Docling + pgmq.
 See `planning/PHASE_2_5_PLAN.md` for detailed 12-task plan.
 
 ## Recent Changes (This Session)
-- Decided to switch from unpdf to **Docling** for document parsing (97.9% table accuracy, OCR)
-- Designed **3-service architecture**: Next.js (Vercel) + Python ingestion (Render) + Supabase (Cloud)
-- Decided to use **Supabase Queues (pgmq)** for reliable job processing with retries
-- Decided to use **pg_cron** for stale job housekeeping
-- Wrote **Phase 2.5 implementation plan** (`planning/PHASE_2_5_PLAN.md`, 12 tasks)
-- Updated **CLAUDE.md** with Project Directory Guide
-- Audited document overlap — multiple stale files identified (see "Doc Debt" below)
+- **Consolidated all stale docs** (7 files updated, 1 deleted) — see commit `7f4fed4`
+  - Deleted `.ai/CONTEXT.md` (redundant with PLAN.md)
+  - Updated `planning/PROJECT_PLAN.md`: Phase 2 tasks → done, added Phase 2.5 section
+  - Updated `specs/ARCHITECTURE.md`: 3-service diagram, pgmq flow, Docling in tech stack
+  - Updated `specs/PRD.md`: Docling decided, OCR resolved, expanded format support
+  - Added decisions #009-#011 to `planning/DECISIONS.md`
+  - Rewrote `prompts/HANDOFF_PROMPT.md`: fixed paths, 3-service architecture
+  - Triaged `.ai/INBOX.md`: OCR, Realtime, queue items resolved
+  - Updated `.claude/CLAUDE.md`: removed CONTEXT.md references
 
 ## Next Steps
-1. **Consolidate stale docs** — delete `.ai/CONTEXT.md`, update `planning/PROJECT_PLAN.md`, `specs/ARCHITECTURE.md`, `specs/PRD.md` open questions, `planning/DECISIONS.md`, `prompts/HANDOFF_PROMPT.md`
-2. **Phase 2 Security Review Checkpoint** — verify RLS on documents + document_chunks tables
-3. **Execute Phase 2.5** — Docling ingestion service (12 tasks in `planning/PHASE_2_5_PLAN.md`)
-4. **Phase 3: Search & Retrieval** (tasks 3.1–3.6)
-5. **Phase 4: Chat Interface** (tasks 4.1–4.9)
-6. **Phase 5: Evaluation & Cost Tracking** (tasks 5.1–5.8)
-7. **Phase 6: PropTech Demo & Polish** (tasks 6.1–6.8)
+1. **Phase 2 Security Review Checkpoint** — verify RLS on documents + document_chunks tables
+2. **Execute Phase 2.5** — Docling ingestion service (12 tasks in `planning/PHASE_2_5_PLAN.md`)
+3. **Phase 3: Search & Retrieval** (tasks 3.1–3.6)
+4. **Phase 4: Chat Interface** (tasks 4.1–4.9)
+5. **Phase 5: Evaluation & Cost Tracking** (tasks 5.1–5.8)
+6. **Phase 6: PropTech Demo & Polish** (tasks 6.1–6.8)
 
 ## Key Decisions
 - No `src/` directory — root-level app/, components/, lib/ (matches scaffold convention)
@@ -64,15 +65,8 @@ See `planning/PHASE_2_5_PLAN.md` for detailed 12-task plan.
 - **Supabase as sole integration point** — no direct Next.js ↔ Python communication
 - **Expanded format support** — PDF, Markdown, Plain text, DOCX, HTML (Docling-supported)
 
-## Doc Debt (Stale Files to Update)
-These files are out of date and need updating in the next session:
-- `.ai/CONTEXT.md` — DELETE (redundant with PLAN.md)
-- `planning/PROJECT_PLAN.md` — Update Phase 2 tasks to "done", add Phase 2.5
-- `specs/ARCHITECTURE.md` — Update to 3-service architecture, add pgmq
-- `specs/PRD.md` — Move Docling from open question to decided
-- `planning/DECISIONS.md` — Add Docling, pgmq, 3-service architecture decisions
-- `prompts/HANDOFF_PROMPT.md` — Fix file paths, reflect new architecture
-- `.ai/INBOX.md` — Remove "OCR support" (Docling handles it), merge Post-MVP backlog
+## Doc Debt — RESOLVED
+All stale files consolidated in commit `7f4fed4`. No remaining doc debt.
 
 ## Open Questions
 - Role-based sidebar visibility: when to wire up the actual role check
