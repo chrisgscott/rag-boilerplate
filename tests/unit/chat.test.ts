@@ -2,17 +2,36 @@ import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 
 // --- Mock AI SDK providers (must be before imports) ---
 
+const mockAnthropicProvider = vi.fn(() => "mock-anthropic-model");
+const mockOpenAIProvider = vi.fn(() => "mock-openai-model");
+
 vi.mock("@ai-sdk/anthropic", () => ({
-  createAnthropic: vi.fn(() => "mock-anthropic-provider"),
+  createAnthropic: vi.fn(() => mockAnthropicProvider),
 }));
 
 vi.mock("@ai-sdk/openai", () => ({
-  createOpenAI: vi.fn(() => "mock-openai-provider"),
+  createOpenAI: vi.fn(() => mockOpenAIProvider),
+}));
+
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: vi.fn(),
+}));
+
+vi.mock("@/lib/rag/search", () => ({
+  hybridSearch: vi.fn(),
+}));
+
+vi.mock("ai", () => ({
+  streamText: vi.fn(),
 }));
 
 import { getLLMProvider, getModelId } from "@/lib/rag/provider";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
+import { createClient } from "@/lib/supabase/server";
+import { hybridSearch } from "@/lib/rag/search";
+import { streamText } from "ai";
+import type { Mock } from "vitest";
 
 // --- Provider Factory Tests ---
 
@@ -33,14 +52,14 @@ describe("Provider Factory", () => {
       process.env.LLM_PROVIDER = "anthropic";
       const provider = getLLMProvider();
       expect(createAnthropic).toHaveBeenCalled();
-      expect(provider).toBe("mock-anthropic-provider");
+      expect(provider).toBe(mockAnthropicProvider);
     });
 
     it("returns openai provider when LLM_PROVIDER=openai", () => {
       process.env.LLM_PROVIDER = "openai";
       const provider = getLLMProvider();
       expect(createOpenAI).toHaveBeenCalled();
-      expect(provider).toBe("mock-openai-provider");
+      expect(provider).toBe(mockOpenAIProvider);
     });
 
     it("throws when LLM_PROVIDER is not set", () => {
@@ -129,5 +148,368 @@ describe("System Prompt Builder", () => {
     const prompt = buildSystemPrompt([]);
     expect(prompt).toContain("[RETRIEVED_CONTEXT]");
     expect(prompt).toContain("[/RETRIEVED_CONTEXT]");
+  });
+});
+
+// --- Route Handler Tests ---
+
+const mockCreateClient = createClient as Mock;
+const mockHybridSearch = hybridSearch as Mock;
+const mockStreamText = streamText as Mock;
+
+const REFUSAL_MESSAGE =
+  "I don't have enough information in the available documents to answer that question.";
+
+function createRequest(body: Record<string, unknown>): Request {
+  return new Request("http://localhost/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+/**
+ * Build a mock Supabase client for chat route tests.
+ */
+function mockChatSupabase(
+  opts: {
+    user?: { id: string } | null;
+    organizationId?: string | null;
+    conversationId?: string;
+    existingConversation?: boolean;
+    messagesHistory?: any[];
+    insertError?: boolean;
+  } = {}
+) {
+  const user = opts.user === undefined ? { id: "user-1" } : opts.user;
+  const orgId = opts.organizationId ?? "org-1";
+  const convId = opts.conversationId ?? "conv-1";
+
+  // Track insert calls for assertions
+  const insertCalls: { table: string; data: any }[] = [];
+
+  const supabase = {
+    auth: {
+      getUser: vi.fn().mockResolvedValue({
+        data: { user },
+        error: user ? null : { message: "Not authenticated" },
+      }),
+    },
+    from: vi.fn().mockImplementation((table: string) => {
+      if (table === "profiles") {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: orgId
+                  ? { current_organization_id: orgId }
+                  : null,
+                error: orgId ? null : { message: "No profile" },
+              }),
+            }),
+          }),
+        };
+      }
+
+      if (table === "conversations") {
+        return {
+          insert: vi.fn().mockImplementation((data: any) => {
+            insertCalls.push({ table, data });
+            return {
+              select: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: { id: convId },
+                  error: null,
+                }),
+              }),
+            };
+          }),
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: opts.existingConversation
+                  ? { id: convId, organization_id: orgId }
+                  : null,
+                error: opts.existingConversation
+                  ? null
+                  : { message: "Not found" },
+              }),
+            }),
+          }),
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ error: null }),
+          }),
+        };
+      }
+
+      if (table === "messages") {
+        return {
+          insert: vi.fn().mockImplementation((data: any) => {
+            insertCalls.push({ table, data });
+            return {
+              select: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: { id: insertCalls.length },
+                  error: opts.insertError
+                    ? { message: "Insert failed" }
+                    : null,
+                }),
+              }),
+            };
+          }),
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              order: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  single: vi.fn().mockResolvedValue({
+                    data: null,
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+          }),
+        };
+      }
+
+      return {};
+    }),
+  };
+
+  return { supabase, insertCalls };
+}
+
+describe("Chat Route Handler", () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env = { ...originalEnv, LLM_PROVIDER: "openai" };
+
+    // Default: streamText returns a mock streaming response
+    mockStreamText.mockReturnValue({
+      toDataStreamResponse: (opts?: any) =>
+        new Response("0:\"Hello from AI\"\n", {
+          headers: {
+            "Content-Type": "text/plain; charset=utf-8",
+            ...(opts?.headers ?? {}),
+          },
+        }),
+      textStream: (async function* () {
+        yield "Hello from AI";
+      })(),
+    });
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
+  it("returns 401 when user is not authenticated", async () => {
+    const { supabase } = mockChatSupabase({ user: null });
+    mockCreateClient.mockResolvedValue(supabase);
+
+    const { POST } = await import("@/app/api/chat/route");
+    const req = createRequest({
+      messages: [{ role: "user", content: "hello" }],
+    });
+    const res = await POST(req);
+
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 400 when messages array is empty", async () => {
+    const { supabase } = mockChatSupabase();
+    mockCreateClient.mockResolvedValue(supabase);
+
+    const { POST } = await import("@/app/api/chat/route");
+    const req = createRequest({ messages: [] });
+    const res = await POST(req);
+
+    expect(res.status).toBe(400);
+  });
+
+  it("returns canned refusal when all chunks below similarity threshold", async () => {
+    const { supabase } = mockChatSupabase();
+    mockCreateClient.mockResolvedValue(supabase);
+    process.env.SIMILARITY_THRESHOLD = "0.7";
+
+    mockHybridSearch.mockResolvedValue({
+      results: [
+        {
+          chunkId: 1,
+          documentId: "doc-1",
+          content: "irrelevant",
+          metadata: {},
+          similarity: 0.3,
+          ftsRank: 0.1,
+          rrfScore: 0.05,
+        },
+      ],
+      queryTokenCount: 5,
+    });
+
+    const { POST } = await import("@/app/api/chat/route");
+    const req = createRequest({
+      messages: [{ role: "user", content: "What is the lease term?" }],
+    });
+    const res = await POST(req);
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).toContain(REFUSAL_MESSAGE);
+    // streamText should NOT have been called
+    expect(mockStreamText).not.toHaveBeenCalled();
+  });
+
+  it("returns canned refusal when search returns empty results", async () => {
+    const { supabase } = mockChatSupabase();
+    mockCreateClient.mockResolvedValue(supabase);
+
+    mockHybridSearch.mockResolvedValue({
+      results: [],
+      queryTokenCount: 5,
+    });
+
+    const { POST } = await import("@/app/api/chat/route");
+    const req = createRequest({
+      messages: [{ role: "user", content: "Random question" }],
+    });
+    const res = await POST(req);
+
+    const text = await res.text();
+    expect(text).toContain(REFUSAL_MESSAGE);
+    expect(mockStreamText).not.toHaveBeenCalled();
+  });
+
+  it("calls streamText with system prompt when results above threshold", async () => {
+    const { supabase } = mockChatSupabase();
+    mockCreateClient.mockResolvedValue(supabase);
+    process.env.SIMILARITY_THRESHOLD = "0.7";
+
+    mockHybridSearch.mockResolvedValue({
+      results: [
+        {
+          chunkId: 1,
+          documentId: "doc-1",
+          content: "The lease term is 12 months.",
+          metadata: {},
+          similarity: 0.92,
+          ftsRank: 0.8,
+          rrfScore: 0.85,
+        },
+      ],
+      queryTokenCount: 5,
+    });
+
+    const { POST } = await import("@/app/api/chat/route");
+    const req = createRequest({
+      messages: [{ role: "user", content: "What is the lease term?" }],
+    });
+    await POST(req);
+
+    expect(mockStreamText).toHaveBeenCalledTimes(1);
+    const callArgs = mockStreamText.mock.calls[0][0];
+    expect(callArgs.system).toContain("[RETRIEVED_CONTEXT]");
+    expect(callArgs.system).toContain("The lease term is 12 months.");
+  });
+
+  it("creates new conversation when no conversationId provided", async () => {
+    const { supabase, insertCalls } = mockChatSupabase();
+    mockCreateClient.mockResolvedValue(supabase);
+
+    mockHybridSearch.mockResolvedValue({
+      results: [
+        {
+          chunkId: 1,
+          documentId: "doc-1",
+          content: "relevant content",
+          metadata: {},
+          similarity: 0.9,
+          ftsRank: 0.8,
+          rrfScore: 0.85,
+        },
+      ],
+      queryTokenCount: 5,
+    });
+
+    const { POST } = await import("@/app/api/chat/route");
+    const req = createRequest({
+      messages: [{ role: "user", content: "What is the lease term?" }],
+    });
+    const res = await POST(req);
+
+    // Should have created a conversation
+    const convInsert = insertCalls.find((c) => c.table === "conversations");
+    expect(convInsert).toBeDefined();
+    expect(convInsert!.data.title).toBe("What is the lease term?");
+
+    // conversationId should be in response headers
+    expect(res.headers.get("x-conversation-id")).toBe("conv-1");
+  });
+
+  it("auto-generates conversation title from first user message (truncated to 50 chars)", async () => {
+    const { supabase, insertCalls } = mockChatSupabase();
+    mockCreateClient.mockResolvedValue(supabase);
+
+    mockHybridSearch.mockResolvedValue({
+      results: [
+        {
+          chunkId: 1,
+          documentId: "doc-1",
+          content: "relevant",
+          metadata: {},
+          similarity: 0.9,
+          ftsRank: 0.8,
+          rrfScore: 0.85,
+        },
+      ],
+      queryTokenCount: 5,
+    });
+
+    const longQuestion =
+      "This is a very long question that exceeds fifty characters and should be truncated for the title";
+
+    const { POST } = await import("@/app/api/chat/route");
+    const req = createRequest({
+      messages: [{ role: "user", content: longQuestion }],
+    });
+    await POST(req);
+
+    const convInsert = insertCalls.find((c) => c.table === "conversations");
+    expect(convInsert!.data.title.length).toBeLessThanOrEqual(50);
+  });
+
+  it("saves user message to database", async () => {
+    const { supabase, insertCalls } = mockChatSupabase();
+    mockCreateClient.mockResolvedValue(supabase);
+
+    mockHybridSearch.mockResolvedValue({
+      results: [
+        {
+          chunkId: 1,
+          documentId: "doc-1",
+          content: "relevant",
+          metadata: {},
+          similarity: 0.9,
+          ftsRank: 0.8,
+          rrfScore: 0.85,
+        },
+      ],
+      queryTokenCount: 5,
+    });
+
+    const { POST } = await import("@/app/api/chat/route");
+    const req = createRequest({
+      messages: [{ role: "user", content: "What is the lease term?" }],
+    });
+    await POST(req);
+
+    const msgInsert = insertCalls.find(
+      (c) => c.table === "messages" && c.data.role === "user"
+    );
+    expect(msgInsert).toBeDefined();
+    expect(msgInsert!.data.content).toBe("What is the lease term?");
+    expect(msgInsert!.data.conversation_id).toBe("conv-1");
   });
 });
