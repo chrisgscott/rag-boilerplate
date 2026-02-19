@@ -23,6 +23,33 @@ vi.mock("@/lib/rag/search", () => ({
 
 vi.mock("ai", () => ({
   streamText: vi.fn(),
+  createUIMessageStream: vi.fn(({ execute }: { execute: (opts: { writer: any }) => void }) => {
+    const chunks: any[] = [];
+    const writer = {
+      write: (part: any) => chunks.push(part),
+    };
+    execute({ writer });
+    // Return a ReadableStream that emits the chunks as SSE
+    const text = chunks
+      .filter((c: any) => c.type === "text-delta")
+      .map((c: any) => c.delta)
+      .join("");
+    return new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(text));
+        controller.close();
+      },
+    });
+  }),
+  createUIMessageStreamResponse: vi.fn(({ stream, headers }: { stream: ReadableStream; headers?: Record<string, string> }) => {
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        ...headers,
+      },
+    });
+  }),
+  convertToModelMessages: vi.fn((messages: any[]) => Promise.resolve(messages)),
 }));
 
 import { getLLMProvider, getModelId } from "@/lib/rag/provider";
@@ -288,10 +315,10 @@ describe("Chat Route Handler", () => {
 
     // Default: streamText returns a mock streaming response
     mockStreamText.mockReturnValue({
-      toDataStreamResponse: (opts?: any) =>
-        new Response("0:\"Hello from AI\"\n", {
+      toUIMessageStreamResponse: (opts?: any) =>
+        new Response("Hello from AI", {
           headers: {
-            "Content-Type": "text/plain; charset=utf-8",
+            "Content-Type": "text/event-stream",
             ...(opts?.headers ?? {}),
           },
         }),

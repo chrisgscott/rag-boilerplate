@@ -1,4 +1,9 @@
-import { streamText } from "ai";
+import {
+  streamText,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+  convertToModelMessages,
+} from "ai";
 import { createClient } from "@/lib/supabase/server";
 import { hybridSearch } from "@/lib/rag/search";
 import { buildSystemPrompt } from "@/lib/rag/prompt";
@@ -120,11 +125,23 @@ export async function POST(req: Request) {
     });
 
     // Return canned refusal — no LLM call
-    // Format compatible with AI SDK useChat data stream protocol
-    return new Response(`0:${JSON.stringify(REFUSAL_MESSAGE)}\n`, {
-      status: 200,
+    // Format compatible with AI SDK useChat UIMessage stream protocol
+    const refusalStream = createUIMessageStream({
+      execute: ({ writer }) => {
+        writer.write({ type: "text-start", id: "refusal" });
+        writer.write({
+          type: "text-delta",
+          id: "refusal",
+          delta: REFUSAL_MESSAGE,
+        });
+        writer.write({ type: "finish-step" });
+        writer.write({ type: "finish", finishReason: "stop" });
+      },
+    });
+
+    return createUIMessageStreamResponse({
+      stream: refusalStream,
       headers: {
-        "Content-Type": "text/plain; charset=utf-8",
         "x-conversation-id": conversationId,
       },
     });
@@ -137,10 +154,14 @@ export async function POST(req: Request) {
   const provider = getLLMProvider();
   const modelId = getModelId();
 
+  // Convert incoming messages (which may be UIMessage format with parts)
+  // to ModelMessage format expected by streamText
+  const modelMessages = await convertToModelMessages(messages);
+
   const result = streamText({
     model: provider(modelId),
     system: systemPrompt,
-    messages,
+    messages: modelMessages,
     onFinish: async ({ text, usage }) => {
       try {
         await supabase.from("messages").insert({
@@ -157,7 +178,7 @@ export async function POST(req: Request) {
             rrfScore: r.rrfScore,
           })),
           token_count:
-            (usage?.promptTokens ?? 0) + (usage?.completionTokens ?? 0),
+            (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0),
           model: modelId,
         });
       } catch (e) {
@@ -166,7 +187,7 @@ export async function POST(req: Request) {
     },
   });
 
-  return result.toDataStreamResponse({
+  return result.toUIMessageStreamResponse({
     headers: {
       "x-conversation-id": conversationId,
     },
