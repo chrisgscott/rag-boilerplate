@@ -1,11 +1,13 @@
 # Project Plan — RAG Boilerplate
 
 ## Current Status
-- **Phase:** 2.5 COMPLETE, ready for Phase 3
-- **Progress:** 36/42+ tasks (Phase 1 + Phase 2 + Phase 2.5 all done)
+- **Phase:** Phase 3 PLANNED, ready for implementation
+- **Progress:** 36/42+ tasks (Phase 1 + Phase 2 + Phase 2.5 all done; Phase 3 designed + planned)
 - **Branch:** `main` (all feature branches merged and deleted)
 - **Repo:** `https://github.com/chrisgscott/rag-boilerplate.git`
 - **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 9 migrations applied, user seeded
+- **Phase 3 Plan:** `docs/plans/2026-02-19-phase-3-search-retrieval-plan.md` (10 tasks, TDD)
+- **Phase 3 Design:** `docs/plans/2026-02-19-phase-3-search-retrieval-design.md`
 
 ### What's Done (Phase 1) — COMPLETE
 - Next.js 16 scaffold with Supabase auth (proxy.ts pattern, not middleware.ts)
@@ -40,16 +42,15 @@
 - **2.5.12**: Docker Compose for local development ✅
 
 ## Recent Changes (This Session)
-- **Supabase Cloud setup**: 9 migrations applied, storage bucket created, user + org seeded
-- **Python `.env` updated**: DATABASE_URL now points to `db.xjzhiprdbzvmijvymkbn.supabase.co:5432`
-- **Branch merge**: `phase-1/foundation` + `phase-2/document-ingestion` merged to `main`
-- **Feature branches deleted**: `phase-1/foundation`, `phase-2/document-ingestion`
-- **Worktree removed**: `.worktrees/phase-2` cleaned up
-- **GitHub remote added**: pushed to `origin/main`
-- **All tests passing on main**: 27 Python + 7 TypeScript, build clean
+- **Phase 3 brainstorming complete**: Design approved via superpowers:brainstorming skill
+- **Design doc committed**: `docs/plans/2026-02-19-phase-3-search-retrieval-design.md` (0f0b3d2)
+- **Implementation plan committed**: `docs/plans/2026-02-19-phase-3-search-retrieval-plan.md` (d6c4b39)
+- **10 tasks planned**: 2 migrations + 7 TDD tasks + 1 docs update
+- **Hosting decision**: Next.js moves from Vercel to Render (all services on one platform)
+- **Ready for**: superpowers:subagent-driven-development to execute the plan
 
 ## Next Steps
-1. **Phase 3: Search & Retrieval** (tasks 3.1–3.6)
+1. **Execute Phase 3 plan** — use `superpowers:subagent-driven-development` to implement `docs/plans/2026-02-19-phase-3-search-retrieval-plan.md` (10 tasks)
 2. **Phase 4: Chat Interface** (tasks 4.1–4.9)
 3. **Phase 5: Evaluation & Cost Tracking** (tasks 5.1–5.8)
 4. **Phase 6: PropTech Demo & Polish** (tasks 6.1–6.8)
@@ -66,7 +67,12 @@
 - **Embedder uses DI** — setEmbeddingClient() for testing, avoids vi.mock complexity
 - **Docling** for document parsing (replaces unpdf) — 97.9% table accuracy, OCR, MIT license
 - **Full pipeline in Python** — parse + chunk + embed + upsert all in Python service (eliminates Vercel timeout risk)
-- **3-service architecture** — Next.js (Vercel) + Python ingestion (Render) + Supabase (Cloud)
+- **3-service architecture** — Next.js (Render) + Python ingestion (Render) + Supabase (Cloud)
+- **Hosting consolidation** — Next.js moved from Vercel to Render (simpler, no serverless timeouts)
+- **Phase 3 filter strategy** — `filter_document_ids uuid[]` in RPC, higher-level filters (mime, date) resolved to doc IDs in TypeScript
+- **Phase 3 similarity threshold** — NOT enforced in search layer; belongs in chat (Phase 4) and eval (Phase 5)
+- **Phase 3 access logging** — fire-and-forget, one row per document per query, failures swallowed
+- **Phase 3 single function** — `hybridSearch(supabase, params)` orchestrates embed → filter → RPC → log
 - **Supabase Queues (pgmq)** — reliable job processing with visibility timeout, automatic retries, DLQ
 - **pg_cron** — stale job cleanup every 5 min, marks stuck "processing" docs as "error"
 - **Supabase as sole integration point** — no direct Next.js ↔ Python communication
