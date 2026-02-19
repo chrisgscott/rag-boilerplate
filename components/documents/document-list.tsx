@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/table";
 import { deleteDocument } from "@/app/(dashboard)/documents/actions";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 type Document = {
   id: string;
@@ -60,6 +61,20 @@ function fileTypeLabel(mime: string) {
 
 export function DocumentList({ documents }: { documents: Document[] }) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const router = useRouter();
+
+  // Poll for status updates when any document is pending or processing
+  const hasInProgress = documents.some(
+    (d) => d.status === "pending" || d.status === "processing"
+  );
+
+  useEffect(() => {
+    if (!hasInProgress) return;
+    const interval = setInterval(() => {
+      router.refresh();
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [hasInProgress, router]);
 
   const handleDelete = async (doc: Document) => {
     setDeletingId(doc.id);

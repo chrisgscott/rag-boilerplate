@@ -54,21 +54,30 @@ export async function uploadDocument(formData: FormData) {
 
   const { supabase, user, organizationId } = await getCurrentOrg();
 
+  // Compute content hash for delta processing (skip re-embedding unchanged files)
+  const fileBuffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest("SHA-256", fileBuffer);
+  const contentHash = Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+
   // Generate a document ID upfront for the storage path
   const documentId = crypto.randomUUID();
   const storagePath = `${organizationId}/${documentId}/${file.name}`;
 
-  // Upload to Supabase Storage
+  // Upload to Supabase Storage (re-create File from buffer since we already consumed it)
   const { error: uploadError } = await supabase.storage
     .from("documents")
-    .upload(storagePath, file);
+    .upload(storagePath, fileBuffer, {
+      contentType: file.type,
+    });
 
   if (uploadError) {
     console.error("Storage upload failed:", uploadError);
     return { error: "Failed to upload file" };
   }
 
-  // Create document record
+  // Create document record with content hash
   const { error: insertError } = await supabase.from("documents").insert({
     id: documentId,
     organization_id: organizationId,
@@ -77,6 +86,7 @@ export async function uploadDocument(formData: FormData) {
     storage_path: storagePath,
     mime_type: file.type,
     file_size: file.size,
+    content_hash: contentHash,
   });
 
   if (insertError) {
@@ -97,15 +107,19 @@ export async function uploadDocument(formData: FormData) {
 export async function deleteDocument(documentId: string) {
   const { supabase } = await getCurrentOrg();
 
-  // Get storage path before deleting
+  // Get document details before deleting
   const { data: doc } = await supabase
     .from("documents")
-    .select("storage_path")
+    .select("storage_path, status")
     .eq("id", documentId)
     .single();
 
   if (!doc) {
     return { error: "Document not found" };
+  }
+
+  if (doc.status === "processing") {
+    return { error: "Cannot delete a document while it is being processed" };
   }
 
   // Delete from storage

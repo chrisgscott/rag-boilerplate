@@ -1,17 +1,19 @@
 import { parsePdf, type ParseResult } from "./pdf";
+import { parseMarkdown, type MarkdownParseResult } from "./markdown";
 
-export type { ParseResult };
+export type { ParseResult, MarkdownParseResult };
+export { parseMarkdown };
 
 type ParserFn = (data: Uint8Array) => Promise<ParseResult>;
 
 const PARSERS: Record<string, ParserFn> = {
   "application/pdf": parsePdf,
-  "text/markdown": parseText,
+  "text/markdown": parseMarkdown,
   "text/plain": parseText,
 };
 
 /**
- * Plain text / markdown parser — text is returned as-is.
+ * Plain text parser — text is returned as-is.
  */
 async function parseText(data: Uint8Array): Promise<ParseResult> {
   const text = new TextDecoder().decode(data).trim();
