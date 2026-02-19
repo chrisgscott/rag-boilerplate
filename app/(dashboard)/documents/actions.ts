@@ -46,10 +46,12 @@ export async function uploadDocument(formData: FormData) {
     "application/pdf",
     "text/markdown",
     "text/plain",
+    "text/html",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   ];
 
   if (!allowedTypes.includes(file.type)) {
-    return { error: "File type not supported. Upload PDF, Markdown, or plain text files." };
+    return { error: "File type not supported. Upload PDF, Markdown, plain text, HTML, or DOCX files." };
   }
 
   const { supabase, user, organizationId } = await getCurrentOrg();

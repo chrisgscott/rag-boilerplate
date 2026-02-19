@@ -10,9 +10,11 @@ const ACCEPTED_TYPES = [
   "application/pdf",
   "text/markdown",
   "text/plain",
+  "text/html",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ];
 
-const ACCEPTED_EXTENSIONS = ".pdf,.md,.txt";
+const ACCEPTED_EXTENSIONS = ".pdf,.md,.txt,.html,.docx";
 
 export function UploadForm() {
   const [isDragging, setIsDragging] = useState(false);
@@ -22,7 +24,7 @@ export function UploadForm() {
 
   const handleFile = useCallback((file: File) => {
     if (!ACCEPTED_TYPES.includes(file.type)) {
-      toast.error("Unsupported file type. Upload PDF, Markdown, or plain text.");
+      toast.error("Unsupported file type. Upload PDF, Markdown, plain text, HTML, or DOCX.");
       return;
     }
     setSelectedFile(file);
@@ -110,7 +112,7 @@ export function UploadForm() {
           Drag and drop a file here, or click to browse
         </p>
         <p className="text-xs text-muted-foreground mt-1">
-          PDF, Markdown, or plain text (max 50 MB)
+          PDF, Markdown, plain text, HTML, or DOCX (max 50 MB)
         </p>
         <input
           ref={fileInputRef}

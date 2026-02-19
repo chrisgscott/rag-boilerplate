@@ -56,6 +56,9 @@ function fileTypeLabel(mime: string) {
   if (mime === "application/pdf") return "PDF";
   if (mime === "text/markdown") return "Markdown";
   if (mime === "text/plain") return "Text";
+  if (mime === "text/html") return "HTML";
+  if (mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    return "DOCX";
   return mime;
 }
 
