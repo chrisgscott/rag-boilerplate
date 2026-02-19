@@ -1,11 +1,11 @@
 # Project Plan — RAG Boilerplate
 
 ## Current Status
-- **Phase:** Phase 3 PLANNED, ready for implementation
-- **Progress:** 36/42+ tasks (Phase 1 + Phase 2 + Phase 2.5 all done; Phase 3 designed + planned)
-- **Branch:** `main` (all feature branches merged and deleted)
+- **Phase:** Phase 3 COMPLETE, Phase 4 next
+- **Progress:** 42/42+ tasks (Phase 1 + Phase 2 + Phase 2.5 + Phase 3 all done)
+- **Branch:** `phase-3-search` (worktree at `.worktrees/phase-3-search`)
 - **Repo:** `https://github.com/chrisgscott/rag-boilerplate.git`
-- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 9 migrations applied, user seeded
+- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 11 migrations applied, user seeded
 - **Phase 3 Plan:** `docs/plans/2026-02-19-phase-3-search-retrieval-plan.md` (10 tasks, TDD)
 - **Phase 3 Design:** `docs/plans/2026-02-19-phase-3-search-retrieval-design.md`
 
@@ -41,17 +41,28 @@
 - **2.5.11**: Updated ARCHITECTURE.md + INBOX.md for 3-service architecture ✅
 - **2.5.12**: Docker Compose for local development ✅
 
+### What's Done (Phase 3) — COMPLETE
+- **3.1**: `hybrid_search` RPC function — vector + BM25 + RRF fusion (`00010_hybrid_search.sql`) ✅
+- **3.2**: Search orchestration layer — `hybridSearch()` in `lib/rag/search.ts` ✅
+- **3.3**: Metadata filtering — `filter_document_ids uuid[]` param in RPC, resolved in TypeScript ✅
+- **3.4**: Configurable top-k + similarity threshold — `match_count` and `similarity_threshold` params ✅
+- **3.5**: Document access logging — fire-and-forget `logDocumentAccess()`, one row per doc per query ✅
+- **3.6**: `document_access_logs` table + RLS (`00011_document_access_logs.sql`) ✅
+- **Tests**: 12 search tests + 7 embedder tests = 19 total passing ✅
+- **Architecture**: Updated hosting from Vercel to Render for Next.js frontend ✅
+
 ## Recent Changes (This Session)
-- **Phase 3 brainstorming complete**: Design approved via superpowers:brainstorming skill
-- **Design doc committed**: `docs/plans/2026-02-19-phase-3-search-retrieval-design.md` (0f0b3d2)
-- **Implementation plan committed**: `docs/plans/2026-02-19-phase-3-search-retrieval-plan.md` (d6c4b39)
-- **10 tasks planned**: 2 migrations + 7 TDD tasks + 1 docs update
-- **Hosting decision**: Next.js moves from Vercel to Render (all services on one platform)
-- **Ready for**: superpowers:subagent-driven-development to execute the plan
+- **Phase 3 fully implemented**: 2 migrations + 1 TypeScript module + 12 tests
+- **Migration 00010**: `hybrid_search` RPC — pgvector cosine + BM25 tsvector + RRF fusion
+- **Migration 00011**: `document_access_logs` table with RLS policies
+- **lib/rag/search.ts**: `hybridSearch()` orchestrator — embed query → optional filter → RPC → access logging
+- **tests/unit/search.test.ts**: 12 tests covering search, filtering, logging, error handling, threshold
+- **ARCHITECTURE.md**: Updated all hosting references from Vercel to Render
+- **PROJECT_PLAN.md**: All Phase 3 tasks (3.1–3.6) marked done
 
 ## Next Steps
-1. **Execute Phase 3 plan** — use `superpowers:subagent-driven-development` to implement `docs/plans/2026-02-19-phase-3-search-retrieval-plan.md` (10 tasks)
-2. **Phase 4: Chat Interface** (tasks 4.1–4.9)
+1. **Merge `phase-3-search` branch** to `main`
+2. **Phase 4: Chat Interface** (tasks 4.1–4.9) — streaming chat with source citations
 3. **Phase 5: Evaluation & Cost Tracking** (tasks 5.1–5.8)
 4. **Phase 6: PropTech Demo & Polish** (tasks 6.1–6.8)
 
@@ -110,12 +121,18 @@
 - `supabase/migrations/00008_ingestion_queue.sql` — pgmq queue + enqueue RPC
 - `supabase/migrations/00009_ingestion_cron.sql` — pg_cron housekeeping
 
+### Phase 3 (Search & Retrieval)
+- `supabase/migrations/00010_hybrid_search.sql` — hybrid_search RPC (vector + BM25 + RRF)
+- `supabase/migrations/00011_document_access_logs.sql` — Access logging table + RLS
+- `lib/rag/search.ts` — Search orchestration (hybridSearch + logDocumentAccess)
+- `tests/unit/search.test.ts` — 12 search tests
+
 ## Commands
 ```bash
 pnpm dev                    # Start Next.js dev server
 pnpm build                  # Build for production
 pnpm db:types               # Regenerate types from schema
-pnpm vitest run             # Run TypeScript tests (7 embedder tests)
+pnpm vitest run             # Run TypeScript tests (19 tests: 7 embedder + 12 search)
 
 # Python service (from services/ingestion/)
 source .venv/bin/activate   # Activate Python venv

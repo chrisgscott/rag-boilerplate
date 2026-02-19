@@ -1,9 +1,9 @@
 # Project Plan: RAG Boilerplate
 
 ## Overview
-- **Current Phase:** 2.5 of 6 (Docling Ingestion Service — planning complete, ready to execute)
-- **Progress:** 23/42+ tasks (Phase 1 + Phase 2 done, Phase 2.5 planned)
-- **Status:** Phase 2 complete, Phase 2.5 planned
+- **Current Phase:** 3 of 6 (Search & Retrieval — COMPLETE)
+- **Progress:** 42/42+ tasks (Phase 1 + Phase 2 + Phase 2.5 + Phase 3 done)
+- **Status:** Phase 3 complete, Phase 4 next
 - **Target:** MVP in 6 weeks
 
 ## Phase 1: Foundation ✅
@@ -101,25 +101,25 @@ See `planning/PHASE_2_5_PLAN.md` for detailed implementation plan (12 tasks).
 
 ---
 
-## Phase 3: Search & Retrieval 📋
+## Phase 3: Search & Retrieval ✅
 
 **Goal:** Hybrid search (vector + BM25) with Reciprocal Rank Fusion
 
 | ID | Task | Status | Complexity | Notes |
 |----|------|--------|------------|-------|
-| 3.1 | `hybrid_search` RPC function (vector + BM25 + RRF) | blocked | M | Core retrieval function |
-| 3.2 | Search orchestration layer (embed query → call RPC → format results) | blocked | M | Needs 3.1 |
-| 3.3 | Metadata filtering support (document type, date range) | blocked | S | SQL WHERE in RPC |
-| 3.4 | Configurable top-k and similarity threshold | blocked | S | |
-| 3.5 | Document access logging (who searched what, when) | blocked | S | Security requirement |
-| 3.6 | Create document_access_logs table + RLS | blocked | S | Needs 3.5 |
+| 3.1 | `hybrid_search` RPC function (vector + BM25 + RRF) | done | M | Migration 00010 |
+| 3.2 | Search orchestration layer (embed query → call RPC → format results) | done | M | lib/rag/search.ts |
+| 3.3 | Metadata filtering support (document type, date range) | done | S | filter_document_ids in RPC, resolved in TS |
+| 3.4 | Configurable top-k and similarity threshold | done | S | match_count + similarity_threshold params |
+| 3.5 | Document access logging (who searched what, when) | done | S | Fire-and-forget via logDocumentAccess() |
+| 3.6 | Create document_access_logs table + RLS | done | S | Migration 00011 |
 
 **Phase 3 Checklist:**
-- [ ] Can search across uploaded documents
-- [ ] Hybrid search returns relevant results from both vector and keyword matches
-- [ ] Results include source document name, chunk content, relevance scores
-- [ ] Search is scoped to user's organization (RLS enforced)
-- [ ] Document access is logged
+- [x] Can search across uploaded documents
+- [x] Hybrid search returns relevant results from both vector and keyword matches
+- [x] Results include source document name, chunk content, relevance scores
+- [x] Search is scoped to user's organization (RLS enforced)
+- [x] Document access is logged
 
 ---
 

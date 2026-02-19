@@ -4,7 +4,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      Frontend (Vercel)                        │
+│                      Frontend (Render)                        │
 │  Next.js 16 (App Router) + ShadCN/UI + TailwindCSS          │
 │  Vercel AI SDK (streaming, multi-provider)                   │
 └──────────────────────┬──────────────────────────────────────┘
@@ -36,7 +36,7 @@
 
 | Service | Tech | Hosting | Responsibility |
 |---------|------|---------|----------------|
-| Frontend | Next.js 16 | Vercel | UI, auth, file upload, query-time embedding, chat |
+| Frontend | Next.js 16 | Render | UI, auth, file upload, query-time embedding, chat |
 | Backend | Supabase | Supabase Cloud | Auth, storage, Postgres, pgvector, pgmq queues |
 | Ingestion | Python/FastAPI | Render | Document parsing (Docling), chunking, embedding, upsert |
 
@@ -61,7 +61,7 @@
 | LLM Integration | Vercel AI SDK | Provider-agnostic (Claude, OpenAI), streaming |
 | Embeddings | OpenAI text-embedding-3-small | $0.02/1M tokens, 1536 dims, widely supported |
 | Type Safety | TypeScript + Zod | End-to-end type safety, runtime validation |
-| Frontend Hosting | Vercel | Optimized for Next.js |
+| Frontend Hosting | Render | All services on one platform, no serverless timeouts |
 | Ingestion Hosting | Render | Python service with persistent process for queue polling |
 
 ## Project Structure
@@ -94,7 +94,8 @@ rag-boilerplate/
 │   │   ├── server.ts                # Server client
 │   │   └── proxy.ts                 # Proxy client (Next.js 16 auth)
 │   └── rag/
-│       └── embedder.ts              # OpenAI embedding wrapper (query-time only)
+│       ├── embedder.ts              # OpenAI embedding wrapper (query-time only)
+│       └── search.ts                # Hybrid search orchestration (embed → RPC → log)
 ├── services/
 │   └── ingestion/                   # Python/FastAPI ingestion service
 │       ├── src/
@@ -119,11 +120,14 @@ rag-boilerplate/
 │   │   ├── 00006_document_chunks.sql # Chunks + HNSW + GIN + RLS
 │   │   ├── 00007_storage_policies.sql # Storage bucket RLS
 │   │   ├── 00008_ingestion_queue.sql # pgmq queue + enqueue RPC
-│   │   └── 00009_ingestion_cron.sql  # pg_cron stale job cleanup
+│   │   ├── 00009_ingestion_cron.sql  # pg_cron stale job cleanup
+│   │   ├── 00010_hybrid_search.sql  # hybrid_search RPC (vector + BM25 + RRF)
+│   │   └── 00011_document_access_logs.sql # Access logging table + RLS
 │   └── config.toml
 ├── tests/
 │   └── unit/
-│       └── embedder.test.ts         # 7 TypeScript embedder tests
+│       ├── embedder.test.ts         # 7 TypeScript embedder tests
+│       └── search.test.ts           # 12 TypeScript search tests
 ├── .env.example
 ├── package.json
 ├── tsconfig.json
@@ -180,7 +184,7 @@ rag-boilerplate/
 ### Decision 8: Python Service for Ingestion (3-Service Architecture)
 - Docling requires Python — replaces TypeScript unpdf parser
 - Full pipeline runs in Python: parse + chunk + embed + upsert
-- Eliminates Vercel serverless timeout risk (60s limit on free tier)
+- Eliminates serverless timeout risk
 - Supabase is sole integration point — no direct Next.js ↔ Python communication
 - Service role key used in Python service only (bypasses RLS for worker operations)
 - Supported formats: PDF, Markdown, Plain text, DOCX, HTML
@@ -189,7 +193,7 @@ rag-boilerplate/
 
 ### Document Ingestion Flow
 ```
-Next.js (Vercel)                     Supabase                       Python Service (Render)
+Next.js (Render)                     Supabase                       Python Service (Render)
 ─────────────────                    ────────                       ───────────────────────
 [File Upload] ──────────────▶ Storage (documents bucket)
 [Create document record] ───▶ Postgres (status: "pending")
@@ -325,7 +329,7 @@ Request → Supabase Auth (JWT) → RLS Policy → auth.uid()
 - Built-in cost tracking per query (usage_logs table)
 - Document access logging (who queried what, when)
 - Evaluation dashboard for retrieval quality monitoring
-- Vercel Analytics for frontend performance
+- Render Dashboard for frontend service monitoring
 - Supabase Dashboard for database metrics and query performance
 - Post-MVP: Langfuse or Arize Phoenix for LLM tracing
 
