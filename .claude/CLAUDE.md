@@ -102,9 +102,52 @@ pnpm tsc --noEmit          # Type check only
 - Don't use naive fixed-size chunking — use recursive with overlap
 - Don't skip the similarity threshold — refuse to answer below 0.7
 
-## Design Reference
-- `docs/rag-design-guide.docx` — Comprehensive RAG technical reference
-- `docs/rag-vertical-dev-icp.docx` — Developer ICP analysis
-- `docs/rag-vertical-icp.docx` — End-market ICP analysis
-- `specs/` — Product requirements, architecture, data model
-- `planning/` — Project plan, decisions, backlog
+## Project Directory Guide
+
+### `PLAN.md` (project root)
+Session-aware progress tracker. Updated at the end of each session with current status, what's done, recent changes, next steps, key decisions, and open questions. This is the primary "where are we?" file. Read this first when starting a new session.
+
+### `.ai/` — Session Context (AI-facing)
+Ephemeral, session-updated files for AI assistants. Updated during and after every session.
+- `CONTEXT.md` — Current project state snapshot (phase, what's built, gotchas, next up). Update at session end.
+- `INBOX.md` — Out-of-scope ideas captured during development. Triage at phase boundaries.
+- `LEARNINGS.md` — Gotchas, non-obvious patterns, and discoveries. Append as you learn them.
+
+### `.claude/` — Claude Code Configuration
+- `CLAUDE.md` — This file. Project-level instructions for Claude Code sessions.
+- `settings.local.json` — Local Claude Code settings (gitignored).
+
+### `docs/` — Reference Documents (read-only)
+Background research and reference material that informed the specs. Not actively updated during development.
+- `rag-design-guide.docx` — Comprehensive RAG technical reference (chunking, search, eval, security)
+- `rag-vertical-dev-icp.docx` — Developer ICP analysis
+- `rag-vertical-icp.docx` — End-market ICP analysis
+
+### `planning/` — Project Management
+Active project planning documents. Updated as work progresses and decisions are made.
+- `PROJECT_BRIEF.md` — High-level project brief (what, why, for whom). Written once, rarely updated.
+- `PROJECT_PLAN.md` — Master task list with phases and status tracking. The original plan from spec-driven-dev.
+- `DECISIONS.md` — Architecture Decision Records (ADRs). Append when making significant technical choices.
+- `PHASE_2_5_PLAN.md` — Detailed implementation plan for Docling ingestion service migration.
+
+### `prompts/` — Agent Handoff Prompts
+Prompts designed to onboard AI agents into the project with full context.
+- `HANDOFF_PROMPT.md` — Instructions for an AI agent starting implementation work. References which files to read, critical implementation notes, backpressure commands, and task workflow.
+
+### `specs/` — Technical Specifications (stable)
+Formal specifications written during planning. These define what to build. Updated only when requirements change.
+- `PRD.md` — Product Requirements Document. Features, user stories, scope, open questions.
+- `ARCHITECTURE.md` — System architecture, tech stack, data flows, project structure, security model.
+- `DATA_MODEL.md` — Full database schema, RLS policies, RPC functions, indexes.
+
+### Where to put new files
+| Type of file | Directory | Example |
+|---|---|---|
+| Implementation plan for a phase/feature | `planning/` | `PHASE_3_PLAN.md` |
+| Architecture decision | `planning/DECISIONS.md` | Append new ADR |
+| Gotcha or non-obvious pattern | `.ai/LEARNINGS.md` | Append to relevant section |
+| Out-of-scope idea | `.ai/INBOX.md` | Add to "To Triage" |
+| Spec change (schema, requirements, architecture) | `specs/` | Update existing file |
+| Reference research document | `docs/` | Add new file |
+| Agent onboarding prompt | `prompts/` | New prompt file |
+| Session progress update | `PLAN.md` (root) | Update status section |
