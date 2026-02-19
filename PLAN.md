@@ -1,13 +1,13 @@
 # Project Plan — RAG Boilerplate
 
 ## Current Status
-- **Phase:** Phase 3 COMPLETE, Phase 4 next
+- **Phase:** Phase 4 DESIGNED, implementation plan next
 - **Progress:** 42/42+ tasks (Phase 1 + Phase 2 + Phase 2.5 + Phase 3 all done)
 - **Branch:** `main` (all feature branches merged and deleted)
 - **Repo:** `https://github.com/chrisgscott/rag-boilerplate.git`
 - **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 11 migrations applied, user seeded
-- **Phase 3 Plan:** `docs/plans/2026-02-19-phase-3-search-retrieval-plan.md` (10 tasks, TDD)
-- **Phase 3 Design:** `docs/plans/2026-02-19-phase-3-search-retrieval-design.md`
+- **Phase 4 Design:** `docs/plans/2026-02-19-phase-4-chat-interface-design.md`
+- **Phase 4 Status:** Design approved, needs implementation plan (writing-plans skill next)
 
 ### What's Done (Phase 1) — COMPLETE
 - Next.js 16 scaffold with Supabase auth (proxy.ts pattern, not middleware.ts)
@@ -52,18 +52,16 @@
 - **Architecture**: Updated hosting from Vercel to Render for Next.js frontend ✅
 
 ## Recent Changes (This Session)
-- **Phase 3 fully implemented**: 2 migrations + 1 TypeScript module + 12 tests
-- **Migration 00010**: `hybrid_search` RPC — pgvector cosine + BM25 tsvector + RRF fusion
-- **Migration 00011**: `document_access_logs` table with RLS policies
-- **lib/rag/search.ts**: `hybridSearch()` orchestrator — embed query → optional filter → RPC → access logging
-- **tests/unit/search.test.ts**: 12 tests covering search, filtering, logging, error handling, threshold
-- **ARCHITECTURE.md**: Updated all hosting references from Vercel to Render
-- **PROJECT_PLAN.md**: All Phase 3 tasks (3.1–3.6) marked done
+- **Phase 4 design completed**: brainstorming skill → 5 design sections approved → design doc committed
+- **Design doc**: `docs/plans/2026-02-19-phase-4-chat-interface-design.md` (commit 53af81f)
+- **TypeScript types regenerated**: `types/database.types.ts` now includes Phase 3 schemas (hybrid_search RPC + document_access_logs)
+- **Housekeeping**: `pnpm db:types` run against Supabase Cloud (was skipped at end of Phase 3)
 
 ## Next Steps
-1. **Phase 4: Chat Interface** (tasks 4.1–4.9) — streaming chat with source citations
-2. **Phase 5: Evaluation & Cost Tracking** (tasks 5.1–5.8)
-3. **Phase 6: PropTech Demo & Polish** (tasks 6.1–6.8)
+1. **Write Phase 4 implementation plan** — invoke writing-plans skill on the design doc
+2. **Execute Phase 4** — subagent-driven-development or executing-plans
+3. **Phase 5: Evaluation & Cost Tracking** (tasks 5.1–5.8)
+4. **Phase 6: PropTech Demo & Polish** (tasks 6.1–6.8)
 
 ## Key Decisions
 - No `src/` directory — root-level app/, components/, lib/ (matches scaffold convention)
@@ -89,6 +87,14 @@
 - **Expanded format support** — PDF, Markdown, Plain text, DOCX, HTML (Docling-supported)
 - **Supabase Cloud** — using cloud instance (project ref: xjzhiprdbzvmijvymkbn, region: us-west-2)
 - **Direct DB connection** for Python worker (port 5432) — long-running transactions during pgmq processing
+- **Phase 4 streaming** — Vercel AI SDK `useChat` + `/api/chat/route.ts` (one Route Handler exception)
+- **Phase 4 provider config** — `LLM_PROVIDER` env var (`anthropic` | `openai`), no hardcoded default
+- **Phase 4 similarity threshold** — `SIMILARITY_THRESHOLD` env var (default 0.7), belt-and-suspenders (hard cutoff + prompt instruction)
+- **Phase 4 schema future-proofing** — `parent_message_id` (branching-ready) + `parts` jsonb (agentic RAG-ready)
+- **Phase 4 conversation UI** — Sheet/drawer for history (most flexible, easy to move later)
+- **Phase 4 UI components** — shadcn.io AI components (copy-paste, not npm) for Message, Conversation, Prompt Input, Sources
+- **Phase 4 sanitization** — react-markdown + rehype-sanitize on all assistant output
+- **Phase 4 deferred** — conflicting source detection (post-MVP), model selector UI (Phase 6)
 
 ## Open Questions
 - Role-based sidebar visibility: when to wire up the actual role check
@@ -125,6 +131,16 @@
 - `supabase/migrations/00011_document_access_logs.sql` — Access logging table + RLS
 - `lib/rag/search.ts` — Search orchestration (hybridSearch + logDocumentAccess)
 - `tests/unit/search.test.ts` — 12 search tests
+
+### Phase 4 (Chat Interface) — PLANNED
+- `supabase/migrations/00012_conversations.sql` — Conversations table + RLS
+- `supabase/migrations/00013_messages.sql` — Messages table + RLS (parent_message_id, parts jsonb)
+- `app/api/chat/route.ts` — Vercel AI SDK streaming endpoint
+- `lib/rag/prompt.ts` — System prompt template with [RETRIEVED_CONTEXT] tags
+- `lib/rag/provider.ts` — LLM provider factory (Anthropic/OpenAI via env var)
+- `components/chat/` — Message, Conversation, Prompt Input, Sources, ConversationList, ChatHeader
+- `app/(dashboard)/chat/page.tsx` — Replace stub with full chat UI
+- `tests/unit/chat.test.ts` — Route handler tests
 
 ## Commands
 ```bash
