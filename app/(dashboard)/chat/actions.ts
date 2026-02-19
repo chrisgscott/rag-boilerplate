@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import type { Json } from "@/types/database.types";
 
 async function getCurrentOrg() {
   const supabase = await createClient();
@@ -37,7 +38,7 @@ export type MessageData = {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
-  sources: any[] | null;
+  sources: Json[] | null;
   createdAt: string;
 };
 
@@ -74,11 +75,15 @@ export async function getConversationMessages(
   const { supabase } = await getCurrentOrg();
 
   // Load conversation (RLS ensures org access)
-  const { data: conversation } = await supabase
+  const { data: conversation, error: convError } = await supabase
     .from("conversations")
     .select("title")
     .eq("id", conversationId)
     .single();
+
+  if (convError || !conversation) {
+    throw new Error("Conversation not found");
+  }
 
   // Load messages
   const { data: messages, error } = await supabase
@@ -92,12 +97,12 @@ export async function getConversationMessages(
   }
 
   return {
-    title: conversation?.title ?? null,
+    title: conversation.title ?? null,
     messages: (messages ?? []).map((m) => ({
       id: m.id.toString(),
-      role: m.role as "user" | "assistant" | "system",
+      role: m.role as MessageData["role"],
       content: m.content,
-      sources: m.sources as any[] | null,
+      sources: m.sources as Json[] | null,
       createdAt: m.created_at,
     })),
   };
@@ -115,6 +120,7 @@ export async function deleteConversation(conversationId: string) {
     .eq("id", conversationId);
 
   if (error) {
+    console.error("Conversation delete failed:", error);
     return { error: "Failed to delete conversation" };
   }
 
