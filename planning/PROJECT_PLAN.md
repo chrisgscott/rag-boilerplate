@@ -1,36 +1,36 @@
 # Project Plan: RAG Boilerplate
 
 ## Overview
-- **Current Phase:** 1 of 6
-- **Progress:** 0/42 tasks (0%)
-- **Status:** Not Started
+- **Current Phase:** 1 of 6 (Complete — pending security review)
+- **Progress:** 10/42 tasks (24%)
+- **Status:** Phase 1 complete
 - **Target:** MVP in 6 weeks
 
-## Phase 1: Foundation ⏳
+## Phase 1: Foundation ✅
 
 **Goal:** Project scaffolding, auth working, core schema deployed, multi-tenant org setup
 
 | ID | Task | Status | Complexity | Notes |
 |----|------|--------|------------|-------|
-| 1.1 | Scaffold with `npx create-next-app . -e with-supabase` | ready | S | Auth, middleware, clients pre-configured |
-| 1.2 | Install ShadCN/UI + core components (button, card, input, dialog, table, sidebar, sonner) | blocked | S | Needs 1.1 |
-| 1.3 | Enable extensions: moddatetime, pgcrypto, vector | blocked | S | Needs 1.1 (local Supabase) |
-| 1.4 | Create profiles table + auto-create trigger | blocked | S | Needs 1.3 |
-| 1.5 | Create organizations + organization_members tables | blocked | S | Needs 1.3 |
-| 1.6 | Create `get_user_organizations()` helper function | blocked | S | Needs 1.5 |
-| 1.7 | Organization creation flow (auto-create org on first signup) | blocked | M | Needs 1.5, 1.6 |
-| 1.8 | Protected route middleware (redirect to /sign-in if unauthenticated) | blocked | S | Needs 1.1 (mostly pre-configured) |
-| 1.9 | Dashboard shell layout with sidebar (ShadCN Sidebar) | blocked | M | Needs 1.2 |
-| 1.10 | Type generation pipeline (`supabase gen types typescript`) | blocked | S | Needs 1.4, 1.5 |
+| 1.1 | Scaffold with `npx create-next-app . -e with-supabase` | done | S | Auth, proxy, clients pre-configured |
+| 1.2 | Install ShadCN/UI + core components (button, card, input, dialog, table, sidebar, sonner) | done | S | 15 components total |
+| 1.3 | Enable extensions: moddatetime, pgcrypto, vector | done | S | Migration 00001 |
+| 1.4 | Create profiles table + auto-create trigger | done | S | Migration 00002 |
+| 1.5 | Create organizations + organization_members tables | done | S | Migration 00003 |
+| 1.6 | Create `get_user_organizations()` helper function | done | S | Included in migration 00003 |
+| 1.7 | Organization creation flow (auto-create org on first signup) | done | M | ensureOrganization() in dashboard layout |
+| 1.8 | Protected route middleware (redirect to /auth/login if unauthenticated) | done | S | Pre-configured by scaffold (proxy.ts) |
+| 1.9 | Dashboard shell layout with sidebar (ShadCN Sidebar) | done | M | App/Admin nav sections |
+| 1.10 | Type generation pipeline (`supabase gen types typescript`) | done | S | `pnpm db:types` script |
 
 **Phase 1 Checklist:**
-- [ ] Can run `pnpm dev` and see landing page
-- [ ] Can run `supabase start` locally
-- [ ] Can sign up, log in, log out
-- [ ] Organization created automatically on first signup
-- [ ] Dashboard shell renders with sidebar navigation
-- [ ] Types auto-generate from schema
-- [ ] All RLS policies on profiles, organizations, org_members
+- [x] Can run `pnpm dev` and see landing page
+- [x] Can run `supabase start` locally
+- [x] Can sign up, log in, log out
+- [x] Organization created automatically on first signup
+- [x] Dashboard shell renders with sidebar navigation
+- [x] Types auto-generate from schema
+- [x] All RLS policies on profiles, organizations, org_members
 
 **CHECKPOINT: Security Review** — Verify auth implementation and initial RLS policies
 

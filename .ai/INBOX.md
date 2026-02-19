@@ -18,6 +18,8 @@ Triage weekly or at phase boundaries.
 - [ ] Multi-query / HyDE retrieval for ambiguous queries
 - [ ] Course/educational content layer
 - [ ] OCR support for scanned PDFs
+- [ ] REST API routes for headless/external frontend integration (search, documents, chat) — lets developers build any frontend on top
+- [ ] MCP server implementation — expose RAG operations (search, ingest, chat) as MCP tools so AI clients (Claude Desktop, Cursor, etc.) can interact directly
 
 ## Triaged
 

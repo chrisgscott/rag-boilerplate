@@ -19,7 +19,7 @@ A production-ready RAG boilerplate built on Next.js 15 + Supabase + pgvector. De
 - Server Components for reads (default)
 - Server Actions for mutations
 - ONE exception: `/api/chat/route.ts` uses Route Handler for Vercel AI SDK streaming
-- Generate types: `supabase gen types typescript --local > src/types/database.types.ts`
+- Generate types: `supabase gen types typescript --local > types/database.types.ts`
 
 ### Authorization
 - ALL auth via Supabase RLS — no application-level auth checks
@@ -43,12 +43,12 @@ A production-ready RAG boilerplate built on Next.js 15 + Supabase + pgvector. De
 - Direct connection (port 5432) for migrations only
 
 ### File Organization
-- Pages in `src/app/(dashboard)/`
+- Pages in `app/(dashboard)/`
 - Server Actions colocated with pages in `actions.ts`
-- RAG pipeline logic in `src/lib/rag/`
-- Parsers in `src/lib/parsers/`
-- Evaluation logic in `src/lib/eval/`
-- Supabase clients in `src/lib/supabase/`
+- RAG pipeline logic in `lib/rag/`
+- Parsers in `lib/parsers/`
+- Evaluation logic in `lib/eval/`
+- Supabase clients in `lib/supabase/`
 
 ## Session Protocol
 
@@ -82,7 +82,7 @@ pnpm lint                   # Run ESLint
 supabase start              # Start local Supabase
 supabase stop               # Stop local Supabase
 supabase db reset           # Reset and re-run all migrations
-supabase gen types typescript --local > src/types/database.types.ts
+supabase gen types typescript --local > types/database.types.ts
 
 # Testing
 pnpm test                   # Run Vitest

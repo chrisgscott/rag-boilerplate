@@ -51,86 +51,89 @@
 
 ```
 rag-boilerplate/
-├── src/
-│   ├── app/
-│   │   ├── (auth)/                  # Auth pages (from Supabase template)
-│   │   │   ├── sign-in/page.tsx
-│   │   │   ├── sign-up/page.tsx
-│   │   │   └── layout.tsx
-│   │   ├── (dashboard)/             # Protected app pages
-│   │   │   ├── layout.tsx           # Dashboard shell with sidebar
-│   │   │   ├── page.tsx             # Dashboard home / chat
-│   │   │   ├── documents/
-│   │   │   │   ├── page.tsx         # Document management
-│   │   │   │   ├── [id]/page.tsx    # Document detail / chunks
-│   │   │   │   └── actions.ts       # Upload, delete server actions
-│   │   │   ├── chat/
-│   │   │   │   ├── page.tsx         # Chat interface
-│   │   │   │   └── [id]/page.tsx    # Conversation detail
-│   │   │   ├── eval/
-│   │   │   │   ├── page.tsx         # Evaluation dashboard
-│   │   │   │   ├── test-sets/
-│   │   │   │   │   └── page.tsx     # Manage golden test sets
-│   │   │   │   └── actions.ts
-│   │   │   ├── usage/
-│   │   │   │   └── page.tsx         # Cost tracking dashboard
-│   │   │   └── settings/
-│   │   │       ├── page.tsx         # Organization settings
-│   │   │       └── actions.ts
-│   │   ├── api/
-│   │   │   ├── chat/route.ts        # Vercel AI SDK streaming endpoint
-│   │   │   ├── ingest/route.ts      # Document ingestion webhook
-│   │   │   └── webhooks/            # External webhooks
-│   │   ├── layout.tsx               # Root layout
-│   │   └── page.tsx                 # Landing page
-│   ├── components/
-│   │   ├── ui/                      # ShadCN components
-│   │   ├── layout/
-│   │   │   ├── app-shell.tsx        # Dashboard shell
-│   │   │   ├── app-sidebar.tsx      # Navigation sidebar
-│   │   │   └── page-header.tsx
-│   │   ├── chat/
-│   │   │   ├── chat-interface.tsx    # Main chat component
-│   │   │   ├── message-bubble.tsx
-│   │   │   ├── source-citation.tsx
-│   │   │   └── chat-input.tsx
+├── app/
+│   ├── auth/                        # Auth pages (from Supabase template)
+│   │   ├── confirm/route.ts
+│   │   ├── login/page.tsx
+│   │   ├── sign-up/page.tsx
+│   │   ├── forgot-password/page.tsx
+│   │   ├── update-password/page.tsx
+│   │   ├── sign-up-success/page.tsx
+│   │   └── error/page.tsx
+│   ├── (dashboard)/                 # Protected app pages
+│   │   ├── layout.tsx               # Dashboard shell with sidebar
+│   │   ├── page.tsx                 # Dashboard home / chat
 │   │   ├── documents/
-│   │   │   ├── upload-form.tsx
-│   │   │   ├── document-list.tsx
-│   │   │   └── processing-status.tsx
-│   │   └── eval/
-│   │       ├── test-set-form.tsx
-│   │       ├── eval-results.tsx
-│   │       └── metric-card.tsx
-│   ├── lib/
-│   │   ├── supabase/
-│   │   │   ├── client.ts            # Browser client (from template)
-│   │   │   ├── server.ts            # Server client (from template)
-│   │   │   └── middleware.ts         # Auth middleware (from template)
-│   │   ├── rag/
-│   │   │   ├── chunker.ts           # Recursive text chunking
-│   │   │   ├── embedder.ts          # OpenAI embedding wrapper
-│   │   │   ├── search.ts            # Hybrid search orchestration
-│   │   │   ├── prompt.ts            # System prompt templates
-│   │   │   └── cost.ts              # Cost calculation utilities
-│   │   ├── parsers/
-│   │   │   ├── pdf.ts               # PDF parsing
-│   │   │   ├── markdown.ts          # Markdown parsing
-│   │   │   └── index.ts             # Parser registry
+│   │   │   ├── page.tsx             # Document management
+│   │   │   ├── [id]/page.tsx        # Document detail / chunks
+│   │   │   └── actions.ts           # Upload, delete server actions
+│   │   ├── chat/
+│   │   │   ├── page.tsx             # Chat interface
+│   │   │   └── [id]/page.tsx        # Conversation detail
 │   │   ├── eval/
-│   │   │   ├── runner.ts            # Evaluation runner
-│   │   │   └── metrics.ts           # Precision, Recall, MRR
-│   │   ├── utils.ts                 # cn() and general utilities
-│   │   └── validations/
-│   │       ├── document.ts          # Document upload validation
-│   │       ├── chat.ts              # Chat input validation
-│   │       └── eval.ts              # Test set validation
-│   ├── hooks/
-│   │   ├── use-chat.ts              # Chat hook wrapping AI SDK
-│   │   └── use-documents.ts         # Document state management
-│   └── types/
-│       ├── database.types.ts        # Generated from Supabase
-│       └── rag.ts                   # RAG-specific types
+│   │   │   ├── page.tsx             # Evaluation dashboard
+│   │   │   ├── test-sets/
+│   │   │   │   └── page.tsx         # Manage golden test sets
+│   │   │   └── actions.ts
+│   │   ├── usage/
+│   │   │   └── page.tsx             # Cost tracking dashboard
+│   │   └── settings/
+│   │       ├── page.tsx             # Organization settings
+│   │       └── actions.ts
+│   ├── api/
+│   │   ├── chat/route.ts            # Vercel AI SDK streaming endpoint
+│   │   ├── ingest/route.ts          # Document ingestion webhook
+│   │   └── webhooks/                # External webhooks
+│   ├── layout.tsx                   # Root layout
+│   └── page.tsx                     # Landing page
+├── components/
+│   ├── ui/                          # ShadCN components
+│   ├── layout/
+│   │   ├── app-shell.tsx            # Dashboard shell
+│   │   ├── app-sidebar.tsx          # Navigation sidebar
+│   │   └── page-header.tsx
+│   ├── chat/
+│   │   ├── chat-interface.tsx       # Main chat component
+│   │   ├── message-bubble.tsx
+│   │   ├── source-citation.tsx
+│   │   └── chat-input.tsx
+│   ├── documents/
+│   │   ├── upload-form.tsx
+│   │   ├── document-list.tsx
+│   │   └── processing-status.tsx
+│   └── eval/
+│       ├── test-set-form.tsx
+│       ├── eval-results.tsx
+│       └── metric-card.tsx
+├── lib/
+│   ├── supabase/
+│   │   ├── client.ts                # Browser client (from template)
+│   │   ├── server.ts                # Server client (from template)
+│   │   └── proxy.ts                 # Proxy client (from template)
+│   ├── rag/
+│   │   ├── chunker.ts               # Recursive text chunking
+│   │   ├── embedder.ts              # OpenAI embedding wrapper
+│   │   ├── search.ts                # Hybrid search orchestration
+│   │   ├── prompt.ts                # System prompt templates
+│   │   └── cost.ts                  # Cost calculation utilities
+│   ├── parsers/
+│   │   ├── pdf.ts                   # PDF parsing
+│   │   ├── markdown.ts              # Markdown parsing
+│   │   └── index.ts                 # Parser registry
+│   ├── eval/
+│   │   ├── runner.ts                # Evaluation runner
+│   │   └── metrics.ts               # Precision, Recall, MRR
+│   ├── utils.ts                     # cn() and general utilities
+│   └── validations/
+│       ├── document.ts              # Document upload validation
+│       ├── chat.ts                  # Chat input validation
+│       └── eval.ts                  # Test set validation
+├── hooks/
+│   ├── use-chat.ts                  # Chat hook wrapping AI SDK
+│   └── use-documents.ts             # Document state management
+├── types/
+│   ├── database.types.ts            # Generated from Supabase
+│   └── rag.ts                       # RAG-specific types
 ├── supabase/
 │   ├── migrations/
 │   │   ├── 00001_extensions.sql

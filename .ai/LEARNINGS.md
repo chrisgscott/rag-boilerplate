@@ -49,7 +49,20 @@ Append gotchas, patterns, and non-obvious knowledge as you discover them.
 - Route Handlers only for streaming (Vercel AI SDK)
 
 ## Project-Specific
-*Add learnings specific to this project as you build*
+
+### Supabase CLI
+- `supabase gen types typescript --local` writes CLI messages (version warnings, "Connecting to db") to stdout — they contaminate the types file
+- Fix: pipe through `2>/dev/null | grep -v '^Connecting'` in the npm script
+
+### Next.js 16
+- `proxy.ts` replaces `middleware.ts` — exports `proxy()` function, same matcher pattern
+- `cookies()` and auth calls are "dynamic data" — accessing them outside `<Suspense>` blocks static prerendering
+- Pattern: wrap dynamic server logic in an async component inside `<Suspense>` (see `OrgGuard` in dashboard layout)
+- Route groups `(dashboard)` can't have a `page.tsx` if root `app/page.tsx` exists — both serve `/`
+
+### Auth Flow
+- Scaffold uses `getClaims()` (fast, reads JWT locally) not `getUser()` (network call)
+- Uses `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (newer) not `NEXT_PUBLIC_SUPABASE_ANON_KEY` (legacy)
 
 ---
 *Append new learnings during development*

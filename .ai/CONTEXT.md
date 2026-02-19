@@ -1,14 +1,18 @@
 # Project Context
 
 ## Current State
-- **Phase:** 1 of 6 (Foundation)
-- **Progress:** 0/42 tasks complete
-- **Status:** Specs complete, ready to begin implementation
+- **Phase:** 1 of 6 (Foundation) — COMPLETE, pending security review
+- **Progress:** 10/42 tasks complete
+- **Status:** Phase 1 done, ready for Phase 2: Document Ingestion Pipeline
 
-## Active Focus
-Ready to begin Phase 1: Foundation — scaffolding, auth, core schema, multi-tenant org setup.
-
-First task: `1.1 — Scaffold with npx create-next-app . -e with-supabase`
+## What's Built
+- Next.js 16 scaffold with Supabase auth (proxy.ts, login, sign-up, forgot-password)
+- 15 ShadCN/UI components installed
+- Supabase local dev running with 3 migrations (extensions, profiles, organizations)
+- Dashboard shell with ShadCN Sidebar (App: Chat, Documents; Admin: Eval, Usage, Settings)
+- Auto-org creation on first signup (ensureOrganization() in dashboard layout)
+- Type generation pipeline (`pnpm db:types`)
+- RLS on profiles, organizations, organization_members
 
 ## Key Decisions (Quick Reference)
 - Stack: Next.js 15 + Supabase + pgvector (Decision #001)
@@ -19,38 +23,38 @@ First task: `1.1 — Scaffold with npx create-next-app . -e with-supabase`
 - text-embedding-3-small for embeddings (Decision #006)
 - Async document ingestion (Decision #007)
 - Private GitHub repo for distribution (Decision #008)
+- No `src/` directory — root-level app/, components/, lib/ (matches scaffold)
+- Sidebar split into App/Admin sections (role-based filtering TODO)
 
 ## Gotchas & Nuances
-- Use Supabase transaction pooler (port 6543) for serverless
+- Next.js 16 uses `proxy.ts` not `middleware.ts`
+- `cookies()` and auth calls need `<Suspense>` wrapping (dynamic data)
+- Supabase CLI outputs version warnings to stdout — filter in db:types script
+- `getClaims()` (fast/local) used instead of `getUser()` (network call)
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (not legacy ANON_KEY)
 - PostgREST doesn't support pgvector operators — must use RPC functions
 - SECURITY INVOKER (not DEFINER) on search RPC so RLS applies
 - Tables as complete chunking units — never split a table across chunks
 - Recursive chunking at 400-512 tokens with 15% overlap
 
-## Files to Review Before Coding
-- `specs/PRD.md` — What we're building
-- `specs/ARCHITECTURE.md` — How it's structured
-- `specs/DATA_MODEL.md` — Full schema + RLS
-- `planning/PROJECT_PLAN.md` — Current task
-- `docs/rag-design-guide.docx` — RAG technical reference
+## Next Up
+Phase 2: Document Ingestion Pipeline (tasks 2.1–2.13)
+- First: documents table + RLS, document_chunks table + indexes
+- Then: Storage bucket, upload UI, parsers, chunker, embedder, ingestion pipeline
 
-## Stack Quick Reference
-- **Scaffolding:** `npx create-next-app . -e with-supabase`
-- **Frontend:** Next.js 15 (App Router) + ShadCN/UI
-- **Backend:** Supabase (Postgres, Auth, Storage, RLS, pgvector)
-- **LLM:** Vercel AI SDK (Claude, OpenAI)
-- **Embeddings:** OpenAI text-embedding-3-small
-- **Search:** pgvector HNSW + tsvector BM25 + RRF
-- **Testing:** Vitest + Playwright
+## Files to Review Before Phase 2
+- `specs/DATA_MODEL.md` — documents + document_chunks schema
+- `specs/ARCHITECTURE.md` — ingestion flow diagram
+- `docs/rag-design-guide.docx` — Chunking + embedding technical details
 
 ## Commands
 ```bash
 pnpm dev                    # Start dev server
 pnpm build                  # Build for production
+pnpm db:types               # Regenerate types from schema
+pnpm db:reset               # Reset and re-run all migrations
 supabase start              # Start local Supabase
-supabase db reset           # Reset and re-run migrations
-supabase gen types typescript --local > src/types/database.types.ts
-pnpm test                   # Run unit tests
+supabase stop               # Stop local Supabase
 pnpm tsc --noEmit          # Type check
 ```
 
