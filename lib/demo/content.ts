@@ -378,37 +378,59 @@ export const DEMO_EVAL_TEST_CASES = [
     question: "What is the monthly rent and when is it due?",
     expected_answer:
       "The monthly rent is $1,450.00, due on the first of each month with a 5-day grace period. A late fee of $75.00 applies after the 5th.",
+    expected_doc_names: ["Residential-Lease-Agreement.md"],
   },
   {
     question: "What happens if I violate the noise policy?",
     expected_answer:
       "Noise violations follow a progressive enforcement process: first offense gets a written warning, second offense is a $100 fine, third is a $250 fine plus mandatory HOA board meeting, and subsequent offenses are $500 each. Three documented noise complaints within 6 months can also be grounds for lease termination with 30-day notice.",
+    expected_doc_names: [
+      "Residential-Lease-Agreement.md",
+      "HOA-Rules-and-Regulations.md",
+    ],
   },
   {
     question: "Can I have a dog? What are the restrictions?",
     expected_answer:
       "Yes, up to 2 pets are allowed with prior written approval. There is a $500 non-refundable pet deposit and $35/month pet rent per pet. Weight limit is 50 lbs per pet. Restricted breeds include Pit Bull, Rottweiler, Doberman Pinscher, and Wolf Hybrid. Dogs must be leashed in all common areas.",
+    expected_doc_names: [
+      "Residential-Lease-Agreement.md",
+      "Community-Guidelines.md",
+    ],
   },
   {
     question: "How do I reserve the rooftop terrace for a party?",
     expected_answer:
       "Reserve via the resident portal at least 14 days in advance. Private events are in 4-hour blocks with a $75 reservation fee and $200 refundable cleaning deposit. Maximum 20 guests. Full refund if cancelled 72+ hours in advance.",
+    expected_doc_names: ["Community-Guidelines.md"],
   },
   {
     question:
       "What's the process for moving out and getting my security deposit back?",
     expected_answer:
       "Provide written notice (60 days for early termination, 60 days before lease end for non-renewal). Schedule a move-out inspection at least 7 days before. Return all keys, fobs, and remotes. Leave the unit broom-clean. Provide a forwarding address. The $2,900 deposit is returned within 30 days, minus deductions for damages, unpaid rent, cleaning, or unreturned keys ($50/key).",
+    expected_doc_names: [
+      "Residential-Lease-Agreement.md",
+      "Community-Guidelines.md",
+    ],
   },
   {
     question: "What are the pool hours and guest rules?",
     expected_answer:
       "The pool is open 7:00 AM – 10:00 PM from Memorial Day to Labor Day. Maximum 4 guests per unit, guest passes required at $5/day per guest. The pool cannot be reserved for private events. No lifeguard on duty — swim at your own risk. Children under 12 must be accompanied by an adult.",
+    expected_doc_names: [
+      "HOA-Rules-and-Regulations.md",
+      "Community-Guidelines.md",
+    ],
   },
   {
     question:
       "I need to park a moving truck overnight. What are the parking rules?",
     expected_answer:
       "Visitor parking has a maximum 24-hour stay without a pass. Extended visitor passes are available for up to 7 days from the management office. Oversized vehicles over 7 feet tall require prior approval. Speed limit is 5 MPH in the garage. Moving hours are 8:00 AM – 6:00 PM, Monday through Saturday only.",
+    expected_doc_names: [
+      "HOA-Rules-and-Regulations.md",
+      "Community-Guidelines.md",
+    ],
   },
 ];

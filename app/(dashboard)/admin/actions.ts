@@ -130,6 +130,7 @@ export async function seedDemo() {
   }
 
   // 3. Upload demo documents
+  const docNameToId = new Map<string, string>();
   for (const doc of DEMO_DOCUMENTS) {
     const documentId = crypto.randomUUID();
     const storagePath = `${org.id}/${documentId}/${doc.name}`;
@@ -168,6 +169,8 @@ export async function seedDemo() {
       continue;
     }
 
+    docNameToId.set(doc.name, documentId);
+
     // Enqueue ingestion
     const { error: queueError } = await admin.rpc("enqueue_ingestion", {
       p_document_id: documentId,
@@ -195,6 +198,10 @@ export async function seedDemo() {
       test_set_id: testSet.id,
       question: tc.question,
       expected_answer: tc.expected_answer,
+      expected_source_ids:
+        tc.expected_doc_names
+          ?.map((name) => docNameToId.get(name))
+          .filter((id): id is string => id !== undefined) ?? null,
     }));
 
     await admin.from("eval_test_cases").insert(testCaseRows);
