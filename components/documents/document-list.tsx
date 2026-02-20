@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FileText, Trash2, Loader2, CheckCircle2, AlertCircle, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -119,7 +120,12 @@ export function DocumentList({ documents }: { documents: Document[] }) {
           return (
             <TableRow key={doc.id}>
               <TableCell className="font-medium max-w-[250px] truncate">
-                {doc.name}
+                <Link
+                  href={`/documents/${doc.id}`}
+                  className="hover:underline text-primary"
+                >
+                  {doc.name}
+                </Link>
               </TableCell>
               <TableCell>{fileTypeLabel(doc.mime_type)}</TableCell>
               <TableCell>{formatSize(doc.file_size)}</TableCell>
