@@ -30,6 +30,7 @@ import {
   PromptInputTextarea,
   PromptInputSubmit,
 } from "@/components/ai/prompt-input";
+import { MessageFeedback } from "./message-feedback";
 
 type InitialMessage = {
   id: string;
@@ -167,13 +168,18 @@ export function ChatInterface({
           ) : (
             messages.map((msg) => (
               <Message key={msg.id} from={msg.role}>
-                <MessageContent>
-                  {msg.role === "assistant" ? (
-                    <MessageResponse>{getMessageText(msg)}</MessageResponse>
-                  ) : (
-                    <p className="whitespace-pre-wrap">{getMessageText(msg)}</p>
+                <div className="group relative">
+                  <MessageContent>
+                    {msg.role === "assistant" ? (
+                      <MessageResponse>{getMessageText(msg)}</MessageResponse>
+                    ) : (
+                      <p className="whitespace-pre-wrap">{getMessageText(msg)}</p>
+                    )}
+                  </MessageContent>
+                  {msg.role === "assistant" && !isStreaming && (
+                    <MessageFeedback messageId={Number(msg.id)} />
                   )}
-                </MessageContent>
+                </div>
               </Message>
             ))
           )}
