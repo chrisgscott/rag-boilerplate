@@ -523,20 +523,26 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_demo: boolean
           name: string
           slug: string
+          system_prompt: string | null
         }
         Insert: {
           created_at?: string
           id?: string
+          is_demo?: boolean
           name: string
           slug: string
+          system_prompt?: string | null
         }
         Update: {
           created_at?: string
           id?: string
+          is_demo?: boolean
           name?: string
           slug?: string
+          system_prompt?: string | null
         }
         Relationships: []
       }
