@@ -3,7 +3,7 @@
 ## Current Status
 - **Phase:** Phase 6 COMPLETE — PropTech Demo & Polish
 - **Progress:** Phases 1–6 complete on main
-- **Branch:** `main` (15 commits ahead of origin)
+- **Branch:** `main` (17 commits ahead of origin)
 - **Repo:** `https://github.com/chrisgscott/rag-boilerplate.git`
 - **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 19 migrations applied
 - **Tests:** 67 passing (4 cost + 14 eval-metrics + 6 judge + 7 embedder + 12 search + 24 chat) + 6 Playwright e2e
@@ -39,26 +39,22 @@
 - Demo org "Sunrise Properties" with cascade delete
 
 ## Recent Changes (This Session)
-- Executed Phase 6 via subagent-driven development (12 commits)
-- Task 1: Migration 00017 — system_prompt + is_demo (b995259)
-- Task 2: Migration 00018 — FK ON DELETE SET NULL (a34fd53)
-- Task 3: Migration 00019 — org UPDATE/DELETE RLS (7bc008a)
-- Task 4: Regenerate TypeScript types (c6a6fe7)
-- Task 5: buildSystemPrompt with org prompt (1cd6a12)
-- Task 6: Wire chat route to org prompt (5322a91)
-- Task 7: System prompt editor (1c4e132)
-- Task 8: Sidebar real data + org switching (b2ba3aa)
-- Task 9: Surface historical sources (0ad4db6)
-- Task 10: Remove hasEnvVars bypass (9599369)
-- Task 11: Demo content module (f93c6b4)
-- Task 12: Admin page with seed/delete (d3ecd31)
+- Executed Phase 6 via subagent-driven development (13 commits + 1 bugfix)
+- Tasks 1-12: Full Phase 6 implementation (see Phase 6 Summary above)
+- RLS audit + bugfix (aae6e01): Admin seed/delete now uses service role client
+  - Created `lib/supabase/admin.ts` — service role client for admin ops
+  - Fixed RLS violation on org INSERT (user client couldn't see newly created org via SELECT)
+  - Fixed `eval_test_cases` insert bug (removed nonexistent `organization_id` column)
+  - Fixed `getDemoStatus` visibility gap (admin client sees all orgs)
+  - Added `SUPABASE_SERVICE_ROLE_KEY` to `.env.example`
 
 ## Next Steps
-1. **Push to GitHub** — 15 commits ahead of origin
-2. **Deploy to Render** — test end-to-end with live Supabase
-3. **Seed demo data** — use /admin page to create Sunrise Properties demo
-4. **Run ingestion pipeline** — process the 3 demo documents
-5. **Test demo flow** — chat with PropTech assistant, verify sources
+1. **Add SUPABASE_SERVICE_ROLE_KEY** to local `.env` (from Supabase dashboard Settings > API)
+2. **Test seed locally** — restart dev server, navigate to /admin, click Seed Demo Data
+3. **Push to GitHub** — 17 commits ahead of origin
+4. **Deploy to Render** — add SUPABASE_SERVICE_ROLE_KEY env var, test end-to-end
+5. **Run ingestion pipeline** — process the 3 demo documents
+6. **Test demo flow** — chat with PropTech assistant, verify sources
 
 ## Key Decisions
 - No `src/` directory — root-level app/, components/, lib/
@@ -71,6 +67,7 @@
 - **Phase 6: Demo org approach** — all demo content under one org, cascade delete
 - **Phase 6: Per-org system prompt** — `organizations.system_prompt` column in DB
 - **Phase 6: Admin page** — /admin with seed + delete demo buttons
+- **Service role client** for admin operations — `lib/supabase/admin.ts` bypasses RLS
 
 ## Open Questions
 - Role-based sidebar visibility (YAGNI'd out of Phase 6)
