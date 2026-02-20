@@ -39,15 +39,19 @@
 - Demo org "Sunrise Properties" with cascade delete
 
 ## Recent Changes (This Session)
-- **Eval Retrieval & Detail View Improvements** (3 commits, pushed to origin)
-  - Fixed truthiness bug: `0` scores were mapped to `null` (displayed as "--") — changed to explicit `!== null` check
-  - Added `expected_doc_names` to demo test cases + wired seeding to resolve doc names → UUIDs for `expected_source_ids`
-  - Built expandable row detail view in eval results table: click any result row to see per-case breakdown
-  - Per-case table shows: Question, Expected Answer, Generated Answer, Retrieval scores, Answer Quality scores
-  - Markdown rendering in generated answers via react-markdown + remark-gfm
-  - Tooltips on all score abbreviations (P@k, R@k, MRR, F, R, C) explaining what each metric measures
-  - Design doc: `docs/plans/2026-02-20-eval-retrieval-detail-view-design.md`
-  - Implementation plan: `docs/plans/2026-02-20-eval-retrieval-detail-view-plan.md`
+- **Chat debugging & source improvements** (5 commits, pushed to origin)
+  - Fixed similarity threshold: default 0.7 → 0.3 (text-embedding-3-small produces 0.3–0.5 range)
+  - Document names in search results: added `documentName` to `SearchResult`, resolved via documents table
+  - System prompt cites by filename (`[Lease-Agreement.pdf]`) instead of `[Source 1]`
+  - Sources shown immediately after streaming (no refresh needed) via `x-sources` response header
+  - Chunk anchor links: source links go to `/documents/{id}#chunk-{chunkId}`
+- **Chat UI polish** (1 commit, pushed to origin)
+  - Removed `-m-6 overflow-hidden` layout hack — uses `flex-1 min-h-0` for proper flex filling
+  - Messages centered with `max-w-3xl mx-auto`
+  - Chat header slimmed to icon-only buttons (History, SquarePen)
+  - Suggestion chips on empty state (4 preset questions)
+  - Prompt input uses `PromptInputFooter` for proper submit button layout
+- **Tests:** 70 passing, clean build
 
 ## Next Steps
 1. **Re-seed demo data** — delete existing demo via /admin, re-seed to populate `expected_source_ids` and `expectedAnswer` in new eval runs
@@ -69,9 +73,11 @@
 - **Phase 6: Admin page** — /admin with seed + delete demo buttons
 - **Service role client** for admin operations — `lib/supabase/admin.ts` bypasses RLS
 
+## Future Enhancements
+- **Inline citations (Perplexity-style)** — ShadCN `inline-citation` component installed at `components/ai/inline-citation.tsx` + `components/ui/carousel.tsx`. Would replace the collapsible Sources dropdown with inline citation badges that parse `[Document-Name.md]` references from LLM output. Requires: (1) custom Streamdown plugin or post-processor to find bracket citations, (2) mapping document names back to source metadata (documentId, chunkId), (3) rendering `InlineCitation` components inline with streamed text. Medium-lift — save for post-launch polish.
+
 ## Open Questions
 - Role-based sidebar visibility (YAGNI'd out of Phase 6)
-- Chat UI cosmetic polish (deferred to later)
 - Org invitation/member management UI (deferred)
 - Dead code cleanup: EnvVarWarning + ConnectSupabaseSteps components (unused after Task 10)
 

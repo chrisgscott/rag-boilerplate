@@ -18,6 +18,7 @@ Triage weekly or at phase boundaries.
 - [ ] Course/educational content layer
 - [ ] REST API routes for headless/external frontend integration (search, documents, chat) — lets developers build any frontend on top
 - [ ] MCP server implementation — expose RAG operations (search, ingest, chat) as MCP tools so AI clients (Claude Desktop, Cursor, etc.) can interact directly
+- [ ] Inline citations (Perplexity-style) — ShadCN `inline-citation` component already installed (`components/ai/inline-citation.tsx`). Needs custom Streamdown plugin to parse `[DocName]` bracket refs from LLM output and render as `InlineCitation` badges with hover cards linking to `/documents/{id}#chunk-{chunkId}`. See PLAN.md "Future Enhancements".
 
 ## Triaged
 
