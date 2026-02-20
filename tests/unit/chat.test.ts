@@ -127,6 +127,7 @@ function makeSource(index: number): SearchResult {
   return {
     chunkId: index,
     documentId: `doc-${index}`,
+    documentName: `Document-${index}.md`,
     content: `Content of chunk ${index}`,
     metadata: {},
     similarity: 0.95 - index * 0.05,
@@ -142,12 +143,10 @@ describe("System Prompt Builder", () => {
     expect(prompt).toContain("[/RETRIEVED_CONTEXT]");
   });
 
-  it("formats each source with document_id, chunk_id, and relevance", () => {
+  it("formats each source with document name and content", () => {
     const prompt = buildSystemPrompt([makeSource(1), makeSource(2)]);
-    expect(prompt).toContain("Source 1:");
-    expect(prompt).toContain("document_id=doc-1");
-    expect(prompt).toContain("chunk_id=1");
-    expect(prompt).toContain("Source 2:");
+    expect(prompt).toContain("[Document-1.md]");
+    expect(prompt).toContain("[Document-2.md]");
     expect(prompt).toContain("Content of chunk 1");
     expect(prompt).toContain("Content of chunk 2");
   });
@@ -163,7 +162,7 @@ describe("System Prompt Builder", () => {
 
   it("includes citation instructions", () => {
     const prompt = buildSystemPrompt([makeSource(1)]);
-    expect(prompt).toContain("cite your sources");
+    expect(prompt).toContain("cite your sources by referencing the document name");
   });
 
   it("includes insufficient-information instruction", () => {
@@ -184,6 +183,7 @@ describe("buildSystemPrompt", () => {
   const mockSources = [
     {
       documentId: "doc-1",
+      documentName: "Test-Doc.md",
       chunkId: "chunk-1",
       content: "Test content",
       similarity: 0.9,

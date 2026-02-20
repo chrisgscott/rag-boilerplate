@@ -201,8 +201,12 @@ export function ChatInterface({
                     <Sources>
                       <SourcesTrigger count={(sourcesMap.get(msg.id) as { documentId: string }[]).length} />
                       <SourcesContent>
-                        {(sourcesMap.get(msg.id) as { documentId: string; chunkId: string; content: string; similarity: number }[]).map((source, idx) => (
-                          <Source key={idx} title={`Source ${idx + 1} (${(source.similarity * 100).toFixed(0)}% match)`} />
+                        {(sourcesMap.get(msg.id) as { documentId: string; documentName?: string; chunkId: number; content: string; similarity: number }[]).map((source, idx) => (
+                          <Source
+                            key={idx}
+                            href={`/documents/${source.documentId}#chunk-${source.chunkId}`}
+                            title={source.documentName ?? `Source ${idx + 1}`}
+                          />
                         ))}
                       </SourcesContent>
                     </Sources>

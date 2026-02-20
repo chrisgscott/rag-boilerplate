@@ -102,7 +102,10 @@ describe("hybridSearch", () => {
   });
 
   it("embeds query, calls RPC, and returns mapped results", async () => {
-    const { client, rpcMock } = mockSupabase({ rpcData: [SAMPLE_RPC_ROW] });
+    const { client, rpcMock } = mockSupabase({
+      rpcData: [SAMPLE_RPC_ROW],
+      documentsData: [{ id: "doc-1", name: "Lease-Agreement.md" }],
+    });
 
     const response = await hybridSearch(client, {
       query: "What are the lease terms?",
@@ -127,6 +130,7 @@ describe("hybridSearch", () => {
       {
         chunkId: 1,
         documentId: "doc-1",
+        documentName: "Lease-Agreement.md",
         content: "Test chunk content about lease terms",
         metadata: { section: "introduction" },
         similarity: 0.95,

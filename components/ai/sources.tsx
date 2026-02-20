@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { BookIcon, ChevronDownIcon } from "lucide-react"
 import type { ComponentProps } from "react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -39,18 +40,30 @@ export const SourcesContent = ({ className, ...props }: SourcesContentProps) => 
   />
 )
 
-export type SourceProps = ComponentProps<"a">
+export type SourceProps = {
+  href?: string
+  title?: string
+  children?: React.ReactNode
+}
 
-export const Source = ({ href, title, children, ...props }: SourceProps) => (
-  <a className="flex items-center gap-2" href={href} rel="noreferrer" target="_blank" {...props}>
-    {children ?? (
-      <>
-        <BookIcon className="h-4 w-4" />
-        <span className="block font-medium">{title}</span>
-      </>
-    )}
-  </a>
-)
+export const Source = ({ href, title, children }: SourceProps) => {
+  const content = children ?? (
+    <>
+      <BookIcon className="h-4 w-4" />
+      <span className="block font-medium">{title}</span>
+    </>
+  )
+
+  if (href?.startsWith("/")) {
+    return <Link href={href} className="flex items-center gap-2 hover:underline">{content}</Link>
+  }
+
+  return (
+    <a className="flex items-center gap-2" href={href} rel="noreferrer" target="_blank">
+      {content}
+    </a>
+  )
+}
 
 /** Demo component for preview */
 export default function SourcesDemo() {

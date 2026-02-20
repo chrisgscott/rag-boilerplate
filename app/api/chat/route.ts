@@ -188,6 +188,7 @@ export async function POST(req: Request) {
           parts: [{ type: "text", text }],
           sources: relevantResults.map((r) => ({
             documentId: r.documentId,
+            documentName: r.documentName,
             chunkId: r.chunkId,
             content: r.content,
             similarity: r.similarity,

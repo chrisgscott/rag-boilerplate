@@ -20,6 +20,7 @@ export type SearchParams = {
 export type SearchResult = {
   chunkId: number;
   documentId: string;
+  documentName: string;
   content: string;
   metadata: Record<string, unknown>;
   similarity: number;
@@ -58,10 +59,24 @@ export async function hybridSearch(
 
   if (error) throw error;
 
-  // 4. Map results from snake_case to camelCase
+  // 4. Resolve document names
+  const docIds = [...new Set((data ?? []).map((row: any) => row.document_id))];
+  const docNameMap = new Map<string, string>();
+  if (docIds.length > 0) {
+    const { data: docs } = await supabase
+      .from("documents")
+      .select("id, name")
+      .in("id", docIds);
+    for (const doc of docs ?? []) {
+      docNameMap.set(doc.id, doc.name);
+    }
+  }
+
+  // 5. Map results from snake_case to camelCase
   const results: SearchResult[] = (data ?? []).map((row: any) => ({
     chunkId: row.chunk_id,
     documentId: row.document_id,
+    documentName: docNameMap.get(row.document_id) ?? "Unknown document",
     content: row.content,
     metadata: row.metadata,
     similarity: row.similarity,
@@ -69,7 +84,7 @@ export async function hybridSearch(
     rrfScore: row.rrf_score,
   }));
 
-  // 5. Log document access (fire-and-forget)
+  // 6. Log document access (fire-and-forget)
   logDocumentAccess(
     supabase,
     results,

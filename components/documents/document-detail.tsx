@@ -159,7 +159,7 @@ export function DocumentDetail({
           {chunks.length > 0 ? (
             <div className="space-y-3">
               {chunks.map((chunk) => (
-                <Card key={chunk.id}>
+                <Card key={chunk.id} id={`chunk-${chunk.id}`}>
                   <CardHeader className="py-3 px-4">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-sm font-medium">
