@@ -20,7 +20,7 @@ def get_embedding_client():
     if _client is None:
         import openai
 
-        _client = openai.OpenAI().embeddings
+        _client = openai.OpenAI(api_key=settings.openai_api_key).embeddings
     return _client
 
 

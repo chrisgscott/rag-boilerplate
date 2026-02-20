@@ -24,7 +24,11 @@ def _get_supabase():
 
 
 def update_document_status(
-    document_id: str, status: str, error_message: str | None = None, chunk_count: int | None = None
+    document_id: str,
+    status: str,
+    error_message: str | None = None,
+    chunk_count: int | None = None,
+    parsed_content: str | None = None,
 ):
     supabase = _get_supabase()
     update_data: dict = {"status": status}
@@ -32,6 +36,8 @@ def update_document_status(
         update_data["error_message"] = error_message
     if chunk_count is not None:
         update_data["chunk_count"] = chunk_count
+    if parsed_content is not None:
+        update_data["parsed_content"] = parsed_content
     supabase.table("documents").update(update_data).eq("id", document_id).execute()
 
 
@@ -133,7 +139,11 @@ def process_message(message: dict) -> None:
 
             # Success
             update_document_status(
-                document_id, "complete", error_message=None, chunk_count=len(chunks)
+                document_id,
+                "complete",
+                error_message=None,
+                chunk_count=len(chunks),
+                parsed_content=parse_result.text,
             )
             logger.info(
                 f"Document {document_id} processed: {len(chunks)} chunks, "
