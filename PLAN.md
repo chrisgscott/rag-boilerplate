@@ -3,7 +3,7 @@
 ## Current Status
 - **Phase:** Phase 6 COMPLETE — PropTech Demo & Polish
 - **Progress:** Phases 1–6 complete on main
-- **Branch:** `main` (17 commits ahead of origin)
+- **Branch:** `main` (up to date with origin, 21 commits pushed)
 - **Repo:** `https://github.com/chrisgscott/rag-boilerplate.git`
 - **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 19 migrations applied
 - **Tests:** 67 passing (4 cost + 14 eval-metrics + 6 judge + 7 embedder + 12 search + 24 chat) + 6 Playwright e2e
@@ -39,22 +39,22 @@
 - Demo org "Sunrise Properties" with cascade delete
 
 ## Recent Changes (This Session)
-- Executed Phase 6 via subagent-driven development (13 commits + 1 bugfix)
-- Tasks 1-12: Full Phase 6 implementation (see Phase 6 Summary above)
-- RLS audit + bugfix (aae6e01): Admin seed/delete now uses service role client
-  - Created `lib/supabase/admin.ts` — service role client for admin ops
-  - Fixed RLS violation on org INSERT (user client couldn't see newly created org via SELECT)
-  - Fixed `eval_test_cases` insert bug (removed nonexistent `organization_id` column)
-  - Fixed `getDemoStatus` visibility gap (admin client sees all orgs)
-  - Added `SUPABASE_SERVICE_ROLE_KEY` to `.env.example`
+- **Eval Retrieval & Detail View Improvements** (3 commits, pushed to origin)
+  - Fixed truthiness bug: `0` scores were mapped to `null` (displayed as "--") — changed to explicit `!== null` check
+  - Added `expected_doc_names` to demo test cases + wired seeding to resolve doc names → UUIDs for `expected_source_ids`
+  - Built expandable row detail view in eval results table: click any result row to see per-case breakdown
+  - Per-case table shows: Question, Expected Answer, Generated Answer, Retrieval scores, Answer Quality scores
+  - Markdown rendering in generated answers via react-markdown + remark-gfm
+  - Tooltips on all score abbreviations (P@k, R@k, MRR, F, R, C) explaining what each metric measures
+  - Design doc: `docs/plans/2026-02-20-eval-retrieval-detail-view-design.md`
+  - Implementation plan: `docs/plans/2026-02-20-eval-retrieval-detail-view-plan.md`
 
 ## Next Steps
-1. **Add SUPABASE_SERVICE_ROLE_KEY** to local `.env` (from Supabase dashboard Settings > API)
-2. **Test seed locally** — restart dev server, navigate to /admin, click Seed Demo Data
-3. **Push to GitHub** — 17 commits ahead of origin
-4. **Deploy to Render** — add SUPABASE_SERVICE_ROLE_KEY env var, test end-to-end
-5. **Run ingestion pipeline** — process the 3 demo documents
-6. **Test demo flow** — chat with PropTech assistant, verify sources
+1. **Re-seed demo data** — delete existing demo via /admin, re-seed to populate `expected_source_ids` and `expectedAnswer` in new eval runs
+2. **Run eval** — verify retrieval scores now show actual values (not "--") and detail view works
+3. **Deploy to Render** — add SUPABASE_SERVICE_ROLE_KEY env var, test end-to-end
+4. **Run ingestion pipeline** — process the 3 demo documents
+5. **Test demo flow** — chat with PropTech assistant, verify sources
 
 ## Key Decisions
 - No `src/` directory — root-level app/, components/, lib/
