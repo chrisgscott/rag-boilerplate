@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { ChatInterface } from "@/components/chat/chat-interface";
+import type { Json } from "@/types/database.types";
 
 export default async function ChatPage({
   searchParams,
@@ -13,6 +14,7 @@ export default async function ChatPage({
     id: string;
     role: "user" | "assistant" | "system";
     content: string;
+    sources?: Json[] | null;
   }[] = [];
 
   if (id) {
@@ -28,7 +30,7 @@ export default async function ChatPage({
 
     const { data: messages } = await supabase
       .from("messages")
-      .select("id, role, content, created_at")
+      .select("id, role, content, sources, created_at")
       .eq("conversation_id", id)
       .order("created_at", { ascending: true });
 
@@ -37,6 +39,7 @@ export default async function ChatPage({
         id: m.id.toString(),
         role: m.role as "user" | "assistant" | "system",
         content: m.content,
+        sources: m.sources as Json[] | null,
       })) ?? [];
   }
 

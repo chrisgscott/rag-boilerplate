@@ -31,11 +31,18 @@ import {
   PromptInputSubmit,
 } from "@/components/ai/prompt-input";
 import { MessageFeedback } from "./message-feedback";
+import {
+  Sources,
+  SourcesTrigger,
+  SourcesContent,
+  Source,
+} from "@/components/ai/sources";
 
 type InitialMessage = {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
+  sources?: unknown[] | null;
 };
 
 /**
@@ -80,6 +87,17 @@ export function ChatInterface({
   // Ref so the body/fetch functions always read the latest value
   const convIdRef = useRef(currentConversationId);
   convIdRef.current = currentConversationId;
+
+  // Map message IDs to their stored sources for historical messages
+  const sourcesMap = useMemo(() => {
+    const map = new Map<string, unknown[]>();
+    for (const msg of initialMessages) {
+      if (msg.sources && msg.sources.length > 0) {
+        map.set(msg.id, msg.sources);
+      }
+    }
+    return map;
+  }, [initialMessages]);
 
   // Memoize the transport so it is stable across re-renders
   const transport = useMemo(
@@ -178,6 +196,16 @@ export function ChatInterface({
                   </MessageContent>
                   {msg.role === "assistant" && !isStreaming && (
                     <MessageFeedback messageId={Number(msg.id)} />
+                  )}
+                  {msg.role === "assistant" && sourcesMap.has(msg.id) && (
+                    <Sources>
+                      <SourcesTrigger count={(sourcesMap.get(msg.id) as { documentId: string }[]).length} />
+                      <SourcesContent>
+                        {(sourcesMap.get(msg.id) as { documentId: string; chunkId: string; content: string; similarity: number }[]).map((source, idx) => (
+                          <Source key={idx} title={`Source ${idx + 1} (${(source.similarity * 100).toFixed(0)}% match)`} />
+                        ))}
+                      </SourcesContent>
+                    </Sources>
                   )}
                 </div>
               </Message>
