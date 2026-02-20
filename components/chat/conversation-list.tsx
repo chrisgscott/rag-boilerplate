@@ -54,10 +54,13 @@ export function ConversationList({
     <ScrollArea className="h-[calc(100vh-8rem)]">
       <div className="space-y-1 p-2">
         {conversations.map((conv) => (
-          <button
+          <div
             key={conv.id}
+            role="button"
+            tabIndex={0}
             onClick={() => onSelect(conv.id)}
-            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-accent transition-colors group"
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onSelect(conv.id); }}
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-accent transition-colors group cursor-pointer"
           >
             <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
             <div className="flex-1 min-w-0">
@@ -76,7 +79,7 @@ export function ConversationList({
             >
               <Trash2 className="h-3 w-3" />
             </Button>
-          </button>
+          </div>
         ))}
       </div>
     </ScrollArea>

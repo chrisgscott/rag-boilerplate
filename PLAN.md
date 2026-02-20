@@ -5,8 +5,8 @@
 - **Progress:** Phases 1–6 complete on main
 - **Branch:** `main` (up to date with origin, 21 commits pushed)
 - **Repo:** `https://github.com/chrisgscott/rag-boilerplate.git`
-- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 19 migrations applied
-- **Tests:** 67 passing (4 cost + 14 eval-metrics + 6 judge + 7 embedder + 12 search + 24 chat) + 6 Playwright e2e
+- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 23 migrations applied
+- **Tests:** 70 passing (4 cost + 14 eval-metrics + 6 judge + 7 embedder + 12 search + 24 chat) + 6 Playwright e2e
 - **Build:** Clean production build
 - **Tailwind:** v4.2.0
 
@@ -39,19 +39,14 @@
 - Demo org "Sunrise Properties" with cascade delete
 
 ## Recent Changes (This Session)
-- **Chat debugging & source improvements** (5 commits, pushed to origin)
-  - Fixed similarity threshold: default 0.7 → 0.3 (text-embedding-3-small produces 0.3–0.5 range)
-  - Document names in search results: added `documentName` to `SearchResult`, resolved via documents table
-  - System prompt cites by filename (`[Lease-Agreement.pdf]`) instead of `[Source 1]`
-  - Sources shown immediately after streaming (no refresh needed) via `x-sources` response header
-  - Chunk anchor links: source links go to `/documents/{id}#chunk-{chunkId}`
-- **Chat UI polish** (1 commit, pushed to origin)
-  - Removed `-m-6 overflow-hidden` layout hack — uses `flex-1 min-h-0` for proper flex filling
-  - Messages centered with `max-w-3xl mx-auto`
-  - Chat header slimmed to icon-only buttons (History, SquarePen)
-  - Suggestion chips on empty state (4 preset questions)
-  - Prompt input uses `PromptInputFooter` for proper submit button layout
-- **Tests:** 70 passing, clean build
+- **Fix nested button hydration error** — conversation-list.tsx outer `<button>` → `<div role="button">` to avoid `<button>` inside `<button>` (delete button nested in conversation row)
+- **Fix RLS infinite recursion** (migration 00023, applied to Supabase Cloud)
+  - `organization_members` FOR ALL policy directly queried itself → infinite recursion on org UPDATE/DELETE
+  - Created `get_user_owner_organizations()` SECURITY DEFINER function (like `get_user_organizations()` but filtered to owner role)
+  - Updated 3 policies: org_members FOR ALL, organizations UPDATE, organizations DELETE
+  - Settings page system prompt save now works
+- **Embeddable chat widget** idea parked in `.ai/INBOX.md` — script tag / iframe for tenant portals
+- **Tests:** 70 passing, clean build, 23 migrations on Supabase Cloud
 
 ## Next Steps
 1. **Re-seed demo data** — delete existing demo via /admin, re-seed to populate `expected_source_ids` and `expectedAnswer` in new eval runs
