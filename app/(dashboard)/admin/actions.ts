@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import {
@@ -20,7 +21,7 @@ async function getAuthUser() {
     redirect("/auth/login");
   }
 
-  return { supabase, user };
+  return { user };
 }
 
 export type DemoStatus = {
@@ -33,9 +34,10 @@ export type DemoStatus = {
 };
 
 export async function getDemoStatus(): Promise<DemoStatus> {
-  const { supabase } = await getAuthUser();
+  await getAuthUser();
+  const admin = createAdminClient();
 
-  const { data: demoOrg } = await supabase
+  const { data: demoOrg } = await admin
     .from("organizations")
     .select("id, name")
     .eq("is_demo", true)
@@ -54,15 +56,15 @@ export async function getDemoStatus(): Promise<DemoStatus> {
   }
 
   const [docs, convs, evalSets] = await Promise.all([
-    supabase
+    admin
       .from("documents")
       .select("id", { count: "exact", head: true })
       .eq("organization_id", demoOrg.id),
-    supabase
+    admin
       .from("conversations")
       .select("id", { count: "exact", head: true })
       .eq("organization_id", demoOrg.id),
-    supabase
+    admin
       .from("eval_test_sets")
       .select("id", { count: "exact", head: true })
       .eq("organization_id", demoOrg.id),
@@ -79,10 +81,11 @@ export async function getDemoStatus(): Promise<DemoStatus> {
 }
 
 export async function seedDemo() {
-  const { supabase, user } = await getAuthUser();
+  const { user } = await getAuthUser();
+  const admin = createAdminClient();
 
   // Check if demo already exists
-  const { data: existing } = await supabase
+  const { data: existing } = await admin
     .from("organizations")
     .select("id")
     .eq("is_demo", true)
@@ -95,7 +98,7 @@ export async function seedDemo() {
 
   // 1. Create demo org
   const slug = "sunrise-properties-demo";
-  const { data: org, error: orgError } = await supabase
+  const { data: org, error: orgError } = await admin
     .from("organizations")
     .insert({
       name: DEMO_ORG_NAME,
@@ -112,7 +115,7 @@ export async function seedDemo() {
   }
 
   // 2. Add current user as owner
-  const { error: memberError } = await supabase
+  const { error: memberError } = await admin
     .from("organization_members")
     .insert({
       organization_id: org.id,
@@ -122,8 +125,7 @@ export async function seedDemo() {
 
   if (memberError) {
     console.error("Failed to add user to demo org:", memberError);
-    // Clean up
-    await supabase.from("organizations").delete().eq("id", org.id);
+    await admin.from("organizations").delete().eq("id", org.id);
     return { error: "Failed to add user to demo organization" };
   }
 
@@ -140,7 +142,7 @@ export async function seedDemo() {
       .join("");
 
     // Upload to storage
-    const { error: uploadError } = await supabase.storage
+    const { error: uploadError } = await admin.storage
       .from("documents")
       .upload(storagePath, buffer, { contentType: doc.mimeType });
 
@@ -150,7 +152,7 @@ export async function seedDemo() {
     }
 
     // Create document record
-    const { error: insertError } = await supabase.from("documents").insert({
+    const { error: insertError } = await admin.from("documents").insert({
       id: documentId,
       organization_id: org.id,
       uploaded_by: user.id,
@@ -167,18 +169,17 @@ export async function seedDemo() {
     }
 
     // Enqueue ingestion
-    const { error: queueError } = await supabase.rpc("enqueue_ingestion", {
+    const { error: queueError } = await admin.rpc("enqueue_ingestion", {
       p_document_id: documentId,
     });
 
     if (queueError) {
       console.error(`Failed to enqueue ${doc.name}:`, queueError);
-      // Non-fatal — pg_cron will pick it up
     }
   }
 
   // 4. Seed eval test set
-  const { data: testSet } = await supabase
+  const { data: testSet } = await admin
     .from("eval_test_sets")
     .insert({
       organization_id: org.id,
@@ -192,16 +193,15 @@ export async function seedDemo() {
   if (testSet) {
     const testCaseRows = DEMO_EVAL_TEST_CASES.map((tc) => ({
       test_set_id: testSet.id,
-      organization_id: org.id,
       question: tc.question,
       expected_answer: tc.expected_answer,
     }));
 
-    await supabase.from("eval_test_cases").insert(testCaseRows);
+    await admin.from("eval_test_cases").insert(testCaseRows);
   }
 
   // 5. Switch user to demo org
-  await supabase
+  await admin
     .from("profiles")
     .update({ current_organization_id: org.id })
     .eq("id", user.id);
@@ -214,10 +214,11 @@ export async function seedDemo() {
 }
 
 export async function deleteDemo() {
-  const { supabase, user } = await getAuthUser();
+  const { user } = await getAuthUser();
+  const admin = createAdminClient();
 
   // Find demo org
-  const { data: demoOrg } = await supabase
+  const { data: demoOrg } = await admin
     .from("organizations")
     .select("id")
     .eq("is_demo", true)
@@ -229,26 +230,25 @@ export async function deleteDemo() {
   }
 
   // 1. Delete storage objects
-  const { data: docs } = await supabase
+  const { data: docs } = await admin
     .from("documents")
     .select("storage_path")
     .eq("organization_id", demoOrg.id);
 
   if (docs && docs.length > 0) {
     const paths = docs.map((d) => d.storage_path);
-    await supabase.storage.from("documents").remove(paths);
+    await admin.storage.from("documents").remove(paths);
   }
 
   // 2. If user's current org is the demo org, switch to another
-  const { data: profile } = await supabase
+  const { data: profile } = await admin
     .from("profiles")
     .select("current_organization_id")
     .eq("id", user.id)
     .single();
 
   if (profile?.current_organization_id === demoOrg.id) {
-    // Find another org for this user
-    const { data: otherMembership } = await supabase
+    const { data: otherMembership } = await admin
       .from("organization_members")
       .select("organization_id")
       .eq("user_id", user.id)
@@ -256,7 +256,7 @@ export async function deleteDemo() {
       .limit(1)
       .single();
 
-    await supabase
+    await admin
       .from("profiles")
       .update({
         current_organization_id: otherMembership?.organization_id ?? null,
@@ -265,7 +265,7 @@ export async function deleteDemo() {
   }
 
   // 3. Delete the org — cascades everything
-  const { error } = await supabase
+  const { error } = await admin
     .from("organizations")
     .delete()
     .eq("id", demoOrg.id);
