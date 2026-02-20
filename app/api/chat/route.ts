@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { hybridSearch } from "@/lib/rag/search";
 import { buildSystemPrompt } from "@/lib/rag/prompt";
 import { getLLMProvider, getModelId } from "@/lib/rag/provider";
+import { trackUsage } from "@/lib/rag/cost-tracker";
 
 const REFUSAL_MESSAGE =
   "I don't have enough information in the available documents to answer that question.";
@@ -169,6 +170,7 @@ export async function POST(req: Request) {
     messages: modelMessages,
     onFinish: async ({ text, usage }) => {
       try {
+        // Save assistant message
         await supabase.from("messages").insert({
           conversation_id: conversationId,
           parent_message_id: userMessageId,
@@ -185,6 +187,20 @@ export async function POST(req: Request) {
           token_count:
             (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0),
           model: modelId,
+        });
+
+        // Track usage and cost (fire-and-forget)
+        trackUsage(supabase, {
+          organizationId,
+          userId: user.id,
+          queryText: latestMessage.content,
+          embeddingTokens: searchResponse.queryTokenCount,
+          llmInputTokens: usage?.inputTokens ?? 0,
+          llmOutputTokens: usage?.outputTokens ?? 0,
+          model: modelId,
+          chunksRetrieved: relevantResults.length,
+        }).catch((e) => {
+          console.error("Failed to track usage:", e);
         });
       } catch (e) {
         console.error("Failed to save assistant message:", e);
