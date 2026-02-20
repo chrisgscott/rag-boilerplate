@@ -29,6 +29,7 @@ import {
   PromptInput,
   PromptInputTextarea,
   PromptInputSubmit,
+  PromptInputFooter,
 } from "@/components/ai/prompt-input";
 import { MessageFeedback } from "./message-feedback";
 import {
@@ -202,39 +203,61 @@ export function ChatInterface({
 
   const isStreaming = status === "streaming" || status === "submitted";
 
+  const suggestions = [
+    "What are the key terms in my lease?",
+    "Summarize the HOA rules",
+    "How much is rent?",
+    "What are the move-in requirements?",
+  ];
+
   return (
-    <div className="flex h-[calc(100vh-7rem)] flex-col -m-6 overflow-hidden">
+    <div className="flex flex-1 min-h-0 flex-col -mx-4 -mb-4">
       <ChatHeader
         title={title}
         onHistoryClick={() => setHistoryOpen(true)}
         onNewChat={handleNewChat}
       />
 
-      <Conversation>
-        <ConversationContent>
+      <Conversation className="flex-1">
+        <ConversationContent className="mx-auto max-w-3xl px-4">
           {messages.length === 0 && !isStreaming ? (
             <ConversationEmptyState
               title="Ask a question"
               description="Ask a question about your documents to get started."
-            />
+            >
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                {suggestions.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className="rounded-full border border-border bg-background px-4 py-2 text-sm text-foreground transition-colors hover:bg-accent"
+                    onClick={() => handleSubmit({ text: s })}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </ConversationEmptyState>
           ) : (
-            messages.map((msg) => (
-              <Message key={msg.id} from={msg.role}>
-                <div className="group relative">
-                  <MessageContent>
-                    {msg.role === "assistant" ? (
-                      <MessageResponse>{getMessageText(msg)}</MessageResponse>
-                    ) : (
-                      <p className="whitespace-pre-wrap">{getMessageText(msg)}</p>
+            messages.map((msg) => {
+              const msgSources = msg.role === "assistant"
+                ? (sourcesMap.get(msg.id) ?? runtimeSources.get(msg.id))
+                : undefined;
+
+              return (
+                <Message key={msg.id} from={msg.role}>
+                  <div className="group relative">
+                    <MessageContent>
+                      {msg.role === "assistant" ? (
+                        <MessageResponse>{getMessageText(msg)}</MessageResponse>
+                      ) : (
+                        <p className="whitespace-pre-wrap">{getMessageText(msg)}</p>
+                      )}
+                    </MessageContent>
+                    {msg.role === "assistant" && !isStreaming && (
+                      <MessageFeedback messageId={Number(msg.id)} />
                     )}
-                  </MessageContent>
-                  {msg.role === "assistant" && !isStreaming && (
-                    <MessageFeedback messageId={Number(msg.id)} />
-                  )}
-                  {msg.role === "assistant" && (() => {
-                    const msgSources = sourcesMap.get(msg.id) ?? runtimeSources.get(msg.id);
-                    if (!msgSources || msgSources.length === 0) return null;
-                    return (
+                    {msg.role === "assistant" && msgSources && msgSources.length > 0 && (
                       <Sources>
                         <SourcesTrigger count={msgSources.length} />
                         <SourcesContent>
@@ -247,11 +270,11 @@ export function ChatInterface({
                           ))}
                         </SourcesContent>
                       </Sources>
-                    );
-                  })()}
-                </div>
-              </Message>
-            ))
+                    )}
+                  </div>
+                </Message>
+              );
+            })
           )}
         </ConversationContent>
         <ConversationScrollButton />
@@ -261,7 +284,10 @@ export function ChatInterface({
         <div className="mx-auto max-w-3xl">
           <PromptInput onSubmit={handleSubmit}>
             <PromptInputTextarea placeholder="Ask a question about your documents..." />
-            <PromptInputSubmit status={status} />
+            <PromptInputFooter>
+              <div />
+              <PromptInputSubmit status={status} />
+            </PromptInputFooter>
           </PromptInput>
         </div>
       </div>
