@@ -127,3 +127,33 @@ export async function deleteConversation(conversationId: string) {
   revalidatePath("/chat");
   return { success: true };
 }
+
+/**
+ * Submit thumbs up/down feedback on an assistant message.
+ * Rating: 1 = thumbs down, 5 = thumbs up.
+ */
+export async function submitFeedback(
+  messageId: number,
+  rating: 1 | 5,
+  comment?: string
+) {
+  const { supabase, user, organizationId } = await getCurrentOrg();
+
+  const { error } = await supabase.from("message_feedback").upsert(
+    {
+      message_id: messageId,
+      organization_id: organizationId,
+      user_id: user.id,
+      rating,
+      comment: comment ?? null,
+    },
+    { onConflict: "message_id,user_id" }
+  );
+
+  if (error) {
+    console.error("Feedback submit failed:", error);
+    return { error: "Failed to submit feedback" };
+  }
+
+  return { success: true };
+}
