@@ -218,9 +218,18 @@ export async function POST(req: Request) {
     },
   });
 
+  const sourcesHeader = JSON.stringify(
+    relevantResults.map((r) => ({
+      documentId: r.documentId,
+      documentName: r.documentName,
+      chunkId: r.chunkId,
+    }))
+  );
+
   return result.toUIMessageStreamResponse({
     headers: {
       "x-conversation-id": conversationId,
+      "x-sources": sourcesHeader,
     },
   });
 }

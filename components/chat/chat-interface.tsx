@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
@@ -88,16 +88,22 @@ export function ChatInterface({
   const convIdRef = useRef(currentConversationId);
   convIdRef.current = currentConversationId;
 
+  type SourceData = { documentId: string; documentName?: string; chunkId: number };
+
   // Map message IDs to their stored sources for historical messages
   const sourcesMap = useMemo(() => {
-    const map = new Map<string, unknown[]>();
+    const map = new Map<string, SourceData[]>();
     for (const msg of initialMessages) {
       if (msg.sources && msg.sources.length > 0) {
-        map.set(msg.id, msg.sources);
+        map.set(msg.id, msg.sources as SourceData[]);
       }
     }
     return map;
   }, [initialMessages]);
+
+  // Sources for messages created during this session (streamed via header)
+  const [runtimeSources, setRuntimeSources] = useState<Map<string, SourceData[]>>(new Map());
+  const pendingSourcesRef = useRef<SourceData[] | null>(null);
 
   // Memoize the transport so it is stable across re-renders
   const transport = useMemo(
@@ -113,6 +119,14 @@ export function ChatInterface({
             convIdRef.current = newConvId;
             setCurrentConversationId(newConvId);
             window.history.replaceState(null, "", `/chat?id=${newConvId}`);
+          }
+          const sourcesHeader = response.headers.get("x-sources");
+          if (sourcesHeader) {
+            try {
+              pendingSourcesRef.current = JSON.parse(sourcesHeader);
+            } catch {
+              pendingSourcesRef.current = null;
+            }
           }
           return response;
         },
@@ -142,6 +156,26 @@ export function ChatInterface({
       toast.error("Failed to send message. Please try again.");
     },
   });
+
+  // When streaming finishes, attach pending sources to the last assistant message
+  const prevStatusRef = useRef(status);
+  useEffect(() => {
+    if (prevStatusRef.current === "streaming" && status === "ready") {
+      if (pendingSourcesRef.current && messages.length > 0) {
+        const lastMsg = messages[messages.length - 1];
+        if (lastMsg.role === "assistant") {
+          const sources = pendingSourcesRef.current;
+          pendingSourcesRef.current = null;
+          setRuntimeSources((prev) => {
+            const next = new Map(prev);
+            next.set(lastMsg.id, sources);
+            return next;
+          });
+        }
+      }
+    }
+    prevStatusRef.current = status;
+  }, [status, messages]);
 
   const handleNewChat = () => {
     convIdRef.current = null;
@@ -197,20 +231,24 @@ export function ChatInterface({
                   {msg.role === "assistant" && !isStreaming && (
                     <MessageFeedback messageId={Number(msg.id)} />
                   )}
-                  {msg.role === "assistant" && sourcesMap.has(msg.id) && (
-                    <Sources>
-                      <SourcesTrigger count={(sourcesMap.get(msg.id) as { documentId: string }[]).length} />
-                      <SourcesContent>
-                        {(sourcesMap.get(msg.id) as { documentId: string; documentName?: string; chunkId: number; content: string; similarity: number }[]).map((source, idx) => (
-                          <Source
-                            key={idx}
-                            href={`/documents/${source.documentId}#chunk-${source.chunkId}`}
-                            title={source.documentName ?? `Source ${idx + 1}`}
-                          />
-                        ))}
-                      </SourcesContent>
-                    </Sources>
-                  )}
+                  {msg.role === "assistant" && (() => {
+                    const msgSources = sourcesMap.get(msg.id) ?? runtimeSources.get(msg.id);
+                    if (!msgSources || msgSources.length === 0) return null;
+                    return (
+                      <Sources>
+                        <SourcesTrigger count={msgSources.length} />
+                        <SourcesContent>
+                          {msgSources.map((source, idx) => (
+                            <Source
+                              key={idx}
+                              href={`/documents/${source.documentId}#chunk-${source.chunkId}`}
+                              title={source.documentName ?? `Source ${idx + 1}`}
+                            />
+                          ))}
+                        </SourcesContent>
+                      </Sources>
+                    );
+                  })()}
                 </div>
               </Message>
             ))
