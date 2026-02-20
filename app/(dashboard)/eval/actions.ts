@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { runEvaluation, type EvalConfig } from "@/lib/rag/eval-runner";
+import { runEvaluation, type EvalConfig, type PerCaseResult } from "@/lib/rag/eval-runner";
 import { getModelId } from "@/lib/rag/provider";
 
 async function getCurrentOrg() {
@@ -276,17 +276,17 @@ export async function getEvalResults(): Promise<EvalResultSummary[]> {
   }));
 }
 
-export async function getEvalResultDetail(resultId: string) {
+export async function getEvalResultDetail(resultId: string): Promise<PerCaseResult[]> {
   const { supabase } = await getCurrentOrg();
 
   const { data, error } = await supabase
     .from("eval_results")
-    .select("*")
+    .select("per_case_results")
     .eq("id", resultId)
     .single();
 
-  if (error) throw new Error("Failed to load eval result");
-  return data;
+  if (error || !data) throw new Error("Failed to load eval result detail");
+  return (data.per_case_results ?? []) as PerCaseResult[];
 }
 
 // --- Feedback Suggestions ---

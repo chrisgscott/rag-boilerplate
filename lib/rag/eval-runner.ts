@@ -15,6 +15,7 @@ export type EvalConfig = {
 export type PerCaseResult = {
   testCaseId: string;
   question: string;
+  expectedAnswer?: string;
   retrievedDocIds: string[];
   expectedSourceIds: string[];
   precisionAtK: number;
@@ -74,6 +75,7 @@ export async function runEvaluation(
     const caseResult: PerCaseResult = {
       testCaseId: tc.id,
       question: tc.question,
+      expectedAnswer: tc.expected_answer ?? undefined,
       retrievedDocIds,
       expectedSourceIds,
       precisionAtK: precision,
