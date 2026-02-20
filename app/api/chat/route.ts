@@ -190,6 +190,7 @@ export async function POST(req: Request) {
             documentId: r.documentId,
             documentName: r.documentName,
             chunkId: r.chunkId,
+            chunkIndex: r.chunkIndex,
             content: r.content,
             similarity: r.similarity,
             rrfScore: r.rrfScore,
@@ -223,6 +224,7 @@ export async function POST(req: Request) {
       documentId: r.documentId,
       documentName: r.documentName,
       chunkId: r.chunkId,
+      chunkIndex: r.chunkIndex,
     }))
   );
 

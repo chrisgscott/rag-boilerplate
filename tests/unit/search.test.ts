@@ -19,6 +19,7 @@ const ORG_ID = "org-test-123";
 // Sample RPC response row (snake_case, matching Postgres RETURNS TABLE)
 const SAMPLE_RPC_ROW = {
   chunk_id: 1,
+  chunk_index: 0,
   document_id: "doc-1",
   content: "Test chunk content about lease terms",
   metadata: { section: "introduction" },
@@ -129,6 +130,7 @@ describe("hybridSearch", () => {
     expect(response.results).toEqual([
       {
         chunkId: 1,
+        chunkIndex: 0,
         documentId: "doc-1",
         documentName: "Lease-Agreement.md",
         content: "Test chunk content about lease terms",

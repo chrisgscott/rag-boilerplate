@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -89,6 +90,21 @@ export function DocumentDetail({
   const status = STATUS_CONFIG[document.status] ?? STATUS_CONFIG.pending;
   const StatusIcon = status.icon;
 
+  // Check URL hash to auto-switch to chunks tab and scroll to the target chunk
+  const hashChunk = typeof window !== "undefined"
+    ? window.location.hash.match(/^#chunk-(\d+)$/)?.[1]
+    : null;
+  const [activeTab, setActiveTab] = useState(hashChunk ? "chunks" : "parsed");
+
+  useEffect(() => {
+    if (!hashChunk) return;
+    // After switching to chunks tab, scroll to the target element
+    const el = globalThis.document.getElementById(`chunk-${hashChunk}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [hashChunk]);
+
   return (
     <div className="space-y-6">
       <Link
@@ -123,7 +139,7 @@ export function DocumentDetail({
         </div>
       )}
 
-      <Tabs defaultValue="parsed">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="parsed">Parsed Content</TabsTrigger>
           <TabsTrigger value="chunks">Chunks ({chunks.length})</TabsTrigger>
@@ -159,7 +175,7 @@ export function DocumentDetail({
           {chunks.length > 0 ? (
             <div className="space-y-3">
               {chunks.map((chunk) => (
-                <Card key={chunk.id} id={`chunk-${chunk.id}`}>
+                <Card key={chunk.id} id={`chunk-${chunk.chunk_index + 1}`}>
                   <CardHeader className="py-3 px-4">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-sm font-medium">

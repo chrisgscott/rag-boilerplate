@@ -89,7 +89,7 @@ export function ChatInterface({
   const convIdRef = useRef(currentConversationId);
   convIdRef.current = currentConversationId;
 
-  type SourceData = { documentId: string; documentName?: string; chunkId: number };
+  type SourceData = { documentId: string; documentName?: string; chunkId: number; chunkIndex?: number };
 
   // Map message IDs to their stored sources for historical messages
   const sourcesMap = useMemo(() => {
@@ -261,13 +261,19 @@ export function ChatInterface({
                       <Sources>
                         <SourcesTrigger count={msgSources.length} />
                         <SourcesContent>
-                          {msgSources.map((source, idx) => (
-                            <Source
-                              key={idx}
-                              href={`/documents/${source.documentId}#chunk-${source.chunkId}`}
-                              title={source.documentName ?? `Source ${idx + 1}`}
-                            />
-                          ))}
+                          {msgSources.map((source, idx) => {
+                            const chunkNum = source.chunkIndex != null
+                              ? source.chunkIndex + 1
+                              : undefined;
+                            const hash = chunkNum != null ? `#chunk-${chunkNum}` : "";
+                            return (
+                              <Source
+                                key={idx}
+                                href={`/documents/${source.documentId}${hash}`}
+                                title={source.documentName ?? `Source ${idx + 1}`}
+                              />
+                            );
+                          })}
                         </SourcesContent>
                       </Sources>
                     )}

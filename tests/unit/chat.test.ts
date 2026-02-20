@@ -126,6 +126,7 @@ import type { SearchResult } from "@/lib/rag/search";
 function makeSource(index: number): SearchResult {
   return {
     chunkId: index,
+    chunkIndex: index - 1,
     documentId: `doc-${index}`,
     documentName: `Document-${index}.md`,
     content: `Content of chunk ${index}`,

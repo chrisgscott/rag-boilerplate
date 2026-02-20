@@ -55,7 +55,7 @@ export const Source = ({ href, title, children }: SourceProps) => {
   )
 
   if (href?.startsWith("/")) {
-    return <Link href={href} className="flex items-center gap-2 hover:underline">{content}</Link>
+    return <Link href={href} target="_blank" className="flex items-center gap-2 hover:underline">{content}</Link>
   }
 
   return (

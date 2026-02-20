@@ -19,6 +19,7 @@ export type SearchParams = {
 
 export type SearchResult = {
   chunkId: number;
+  chunkIndex: number;
   documentId: string;
   documentName: string;
   content: string;
@@ -75,6 +76,7 @@ export async function hybridSearch(
   // 5. Map results from snake_case to camelCase
   const results: SearchResult[] = (data ?? []).map((row: any) => ({
     chunkId: row.chunk_id,
+    chunkIndex: row.chunk_index,
     documentId: row.document_id,
     documentName: docNameMap.get(row.document_id) ?? "Unknown document",
     content: row.content,
