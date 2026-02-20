@@ -19,7 +19,18 @@ export async function ensureOrganization() {
     redirect("/auth/login");
   }
 
-  // Check if user has any organizations
+  // Check if user already has a current_organization_id set
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("current_organization_id")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.current_organization_id) {
+    return; // User already has an org set
+  }
+
+  // Check if user has any organizations via membership
   const { data: memberships } = await supabase
     .from("organization_members")
     .select("organization_id")
@@ -27,16 +38,21 @@ export async function ensureOrganization() {
     .limit(1);
 
   if (memberships && memberships.length > 0) {
-    return; // User already has an org
+    // User has an org but no current_organization_id — set it
+    await supabase
+      .from("profiles")
+      .update({ current_organization_id: memberships[0].organization_id })
+      .eq("id", user.id);
+    return;
   }
 
-  // Create a default organization
+  // No org at all — create a default one
   const displayName =
     user.user_metadata?.full_name ||
     user.email?.split("@")[0] ||
     "My";
   const orgName = `${displayName}'s Organization`;
-  const suffix = user.id.slice(0, 8); // Use first 8 chars of user ID for uniqueness
+  const suffix = user.id.slice(0, 8);
   const slug = `${orgName}-${suffix}`
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")

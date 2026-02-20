@@ -150,7 +150,7 @@ export function ChatInterface({
   const isStreaming = status === "streaming" || status === "submitted";
 
   return (
-    <div className="flex h-[calc(100vh-7rem)] flex-col -m-6">
+    <div className="flex h-[calc(100vh-7rem)] flex-col -m-6 overflow-hidden">
       <ChatHeader
         title={title}
         onHistoryClick={() => setHistoryOpen(true)}
