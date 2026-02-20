@@ -1,10 +1,18 @@
-export default function SettingsPage() {
+import { getModelRates } from "./actions";
+import { ModelRatesTable } from "@/components/settings/model-rates-table";
+
+export default async function SettingsPage() {
+  const rates = await getModelRates();
+
   return (
-    <div>
-      <h2 className="text-2xl font-bold mb-4">Settings</h2>
-      <p className="text-muted-foreground">
-        Organization and account settings. Coming in Phase 6.
-      </p>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+        <p className="text-muted-foreground">
+          Manage model rates and configuration.
+        </p>
+      </div>
+      <ModelRatesTable rates={rates} />
     </div>
   );
 }
