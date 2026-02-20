@@ -275,6 +275,19 @@ function mockChatSupabase(
         };
       }
 
+      if (table === "organizations") {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { system_prompt: null },
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
+
       if (table === "conversations") {
         return {
           insert: vi.fn().mockImplementation((data: any) => {

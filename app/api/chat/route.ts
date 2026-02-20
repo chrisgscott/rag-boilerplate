@@ -49,6 +49,15 @@ export async function POST(req: Request) {
 
   const organizationId = profile.current_organization_id;
 
+  // Fetch org-level system prompt (if configured)
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("system_prompt")
+    .eq("id", organizationId)
+    .single();
+
+  const orgSystemPrompt = org?.system_prompt ?? null;
+
   // 4. Get or create conversation
   let conversationId = existingConversationId;
 
@@ -149,7 +158,7 @@ export async function POST(req: Request) {
   }
 
   // 9. Build system prompt
-  const systemPrompt = buildSystemPrompt(relevantResults);
+  const systemPrompt = buildSystemPrompt(relevantResults, orgSystemPrompt);
 
   // 10. Stream response
   const provider = getLLMProvider();
