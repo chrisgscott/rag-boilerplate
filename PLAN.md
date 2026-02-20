@@ -1,8 +1,8 @@
 # Project Plan — RAG Boilerplate
 
 ## Current Status
-- **Phase:** Phase 5 DESIGN COMPLETE — ready for implementation planning
-- **Progress:** Phases 1–4 done, Phase 5 design approved
+- **Phase:** Phase 5 IMPLEMENTATION PLAN COMPLETE — ready for execution
+- **Progress:** Phases 1–4 done, Phase 5 design approved, implementation plan written
 - **Branch:** `main` (all feature branches merged)
 - **Repo:** `https://github.com/chrisgscott/rag-boilerplate.git`
 - **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 13 migrations applied
@@ -29,18 +29,29 @@ Key decisions:
 - **UI:** /eval with 3 tabs (Test Sets, Run Evaluation, Results History), /usage dashboard, /settings model rates
 - **Eval pipeline:** Search-only for retrieval metrics, full pipeline for answer quality
 
+### Phase 5 Implementation Plan — WRITTEN
+Plan doc: `docs/plans/2026-02-19-phase-5-eval-cost-impl.md` (commit a0d9848)
+
+21 tasks covering:
+1. **Tasks 1-4:** DB migrations (usage_logs, model_rates, eval tables, message_feedback) + type regen
+2. **Tasks 5-7:** Core library with TDD (cost calculator, eval metrics, LLM judge)
+3. **Task 8:** Cost tracking integration in chat route's onFinish callback
+4. **Tasks 9-12:** Settings page (model rates CRUD) + Usage dashboard
+5. **Tasks 13-14:** Message feedback (thumbs up/down in chat)
+6. **Tasks 15-16:** Eval runner + Server Actions
+7. **Tasks 17-20:** Eval page UI (test sets, runner, results, feedback conversion)
+8. **Task 21:** Final verification
+
+User was asked to choose execution method (subagent-driven or parallel session) — has not yet answered.
+
 ## Recent Changes (This Session)
-- **Phase 4 branch merged** to main (fast-forward), feature branch deleted
-- **Tailwind v4 upgrade** — removed v3 + autoprefixer + tailwindcss-animate, added v4 + @tailwindcss/postcss + tw-animate-css, rewrote globals.css with CSS-based config, deleted tailwind.config.ts
-- **ShadCN sidebar-07** adopted — collapsible icon sidebar with TeamSwitcher, NavUser, SidebarRail
-- **Org error fixed** — ensureOrganization now checks profiles.current_organization_id first
-- **Playwright e2e tests** — 6 tests for chat interface (login, empty state, send/receive, history, new chat)
-- **vitest.config.ts** — added e2e exclude pattern
-- **Phase 5 design completed** — brainstorming skill, all sections approved
+- **Phase 5 implementation plan written** — 21-task plan at `docs/plans/2026-02-19-phase-5-eval-cost-impl.md` (commit a0d9848)
+- Used writing-plans skill: read all key files (chat route, search, embedder, provider, tests, migrations, sidebar, etc.) to write precise plan with exact code
+- Key observations captured in plan: `messages.id` is bigint (not uuid), `hybridSearch()` already returns `queryTokenCount`, next migration = 00014
 
 ## Next Steps
-1. **Write Phase 5 implementation plan** — invoke writing-plans skill
-2. **Execute Phase 5** — eval tables, cost tracking, eval runner, feedback UI, dashboards
+1. **Choose execution method** — subagent-driven (this session) vs parallel session
+2. **Execute Phase 5** — 21 tasks: migrations, cost tracking, eval system, feedback UI, dashboards
 3. **Phase 6: PropTech Demo & Polish**
 
 ## Key Decisions
