@@ -1,58 +1,76 @@
 # Project Plan — RAG Boilerplate
 
 ## Current Status
-- **Phase:** Phase 5 IMPLEMENTATION PLAN COMPLETE — ready for execution
-- **Progress:** Phases 1–4 done, Phase 5 design approved, implementation plan written
-- **Branch:** `main` (all feature branches merged)
+- **Phase:** Phase 5 COMPLETE — all 21 tasks implemented, ready to merge
+- **Progress:** Phases 1–5 done on feature branch, pending merge to main
+- **Branch:** `phase-5-eval-cost` (15 commits ahead of main)
 - **Repo:** `https://github.com/chrisgscott/rag-boilerplate.git`
-- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 13 migrations applied
-- **Tests:** 40 passing (7 embedder + 12 search + 21 chat) + 6 Playwright e2e
+- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 16 migrations applied (00014-00016 new)
+- **Tests:** 64 passing (4 cost + 14 eval-metrics + 6 judge + 7 embedder + 12 search + 21 chat) + 6 Playwright e2e
 - **Build:** Clean production build
-- **Tailwind:** Upgraded to v4.2.0 (from v3.4.1)
+- **Tailwind:** v4.2.0
 
-### What's Done (Phases 1-4) — COMPLETE
+### What's Done (Phases 1-5) — COMPLETE
 - Phase 1: Next.js 16 + Supabase auth + dashboard shell
 - Phase 2: Document upload/management + RLS
 - Phase 2.5: Python/FastAPI ingestion (Docling + pgmq)
 - Phase 3: Hybrid search (vector + BM25 + RRF) + access logging
 - Phase 4: Chat interface (streaming, conversation history, source citations)
+- Phase 5: Evaluation & cost tracking (see below)
 
-### Phase 5 Design — APPROVED
-Design doc: `docs/plans/2026-02-19-phase-5-eval-cost-design.md`
+### Phase 5 — ALL 21 TASKS COMPLETE
 
-Key decisions:
-- **Custom-built** evaluation & cost tracking (not Langfuse) — self-contained in Supabase
-- **Cost tracking:** usage_logs table + model_rates table (DB-managed with admin UI)
-- **Evaluation:** Retrieval metrics (P@k, R@k, MRR) + answer quality (faithfulness, relevance, completeness via LLM judge)
-- **User feedback:** Thumbs up/down on messages → convert to eval test cases
-- **Eval runner:** Server Actions (not background queue)
-- **UI:** /eval with 3 tabs (Test Sets, Run Evaluation, Results History), /usage dashboard, /settings model rates
-- **Eval pipeline:** Search-only for retrieval metrics, full pipeline for answer quality
+**Migrations (Tasks 1-4):**
+- `00014_usage_logs.sql` — usage_logs + model_rates tables with RLS
+- `00015_eval_tables.sql` — eval_test_sets, eval_test_cases, eval_results with RLS
+- `00016_message_feedback.sql` — message_feedback (bigint FK to messages) with RLS
+- TypeScript types regenerated
 
-### Phase 5 Implementation Plan — WRITTEN
-Plan doc: `docs/plans/2026-02-19-phase-5-eval-cost-impl.md` (commit a0d9848)
+**Core Libraries (Tasks 5-7, TDD):**
+- `lib/rag/cost.ts` — calculateCost(), DEFAULT_MODEL_RATES (4 tests)
+- `lib/rag/eval-metrics.ts` — precisionAtK, recallAtK, meanReciprocalRank, aggregateMetrics (14 tests)
+- `lib/rag/judge.ts` — buildJudgePrompt, parseJudgeResponse (6 tests)
 
-21 tasks covering:
-1. **Tasks 1-4:** DB migrations (usage_logs, model_rates, eval tables, message_feedback) + type regen
-2. **Tasks 5-7:** Core library with TDD (cost calculator, eval metrics, LLM judge)
-3. **Task 8:** Cost tracking integration in chat route's onFinish callback
-4. **Tasks 9-12:** Settings page (model rates CRUD) + Usage dashboard
-5. **Tasks 13-14:** Message feedback (thumbs up/down in chat)
-6. **Tasks 15-16:** Eval runner + Server Actions
-7. **Tasks 17-20:** Eval page UI (test sets, runner, results, feedback conversion)
-8. **Task 21:** Final verification
+**Cost Tracking (Task 8):**
+- `lib/rag/cost-tracker.ts` — getModelRates (DB + fallback), trackUsage (fire-and-forget)
+- `app/api/chat/route.ts` — onFinish callback extended with trackUsage()
 
-User was asked to choose execution method (subagent-driven or parallel session) — has not yet answered.
+**Settings & Usage (Tasks 9-12):**
+- `app/(dashboard)/settings/actions.ts` — Model rates CRUD + seed defaults
+- `components/settings/model-rates-table.tsx` — Admin table with add/delete/seed
+- `app/(dashboard)/usage/actions.ts` — getUsageSummary, getRecentUsage
+- `components/usage/usage-dashboard.tsx` + `usage-table.tsx` — Dashboard cards + query table
+- `app/(dashboard)/usage/page.tsx` — Server Component page
+
+**Feedback (Tasks 13-14):**
+- `app/(dashboard)/chat/actions.ts` — submitFeedback (upsert, rating 1 or 5)
+- `components/chat/message-feedback.tsx` — ThumbsUp/ThumbsDown (hover-to-show)
+- `components/chat/chat-interface.tsx` — Integrated feedback into message rendering
+
+**Eval Engine (Tasks 15-16):**
+- `lib/rag/eval-runner.ts` — runEvaluation (retrieval + answer quality phases)
+- `app/(dashboard)/eval/actions.ts` — Full Server Actions (test set CRUD, test case CRUD, runEval, getResults, feedback suggestions, convertFeedbackToTestCase)
+
+**Eval Page UI (Tasks 17-20):**
+- `app/(dashboard)/eval/page.tsx` — 3-tab Server Component (Test Sets, Run, Results)
+- `components/eval/test-set-manager.tsx` — Expandable test set cards with case CRUD
+- `components/eval/test-case-form.tsx` — Add test case form
+- `components/eval/eval-runner.tsx` — Select test set + run button
+- `components/eval/eval-results.tsx` — Results table with ScoreBadge/QualityScore/StatusBadge
+- `components/eval/feedback-suggestions.tsx` — Negative feedback → test case conversion
+
+**Final Verification (Task 21):** 64 tests passing, clean build
 
 ## Recent Changes (This Session)
-- **Phase 5 implementation plan written** — 21-task plan at `docs/plans/2026-02-19-phase-5-eval-cost-impl.md` (commit a0d9848)
-- Used writing-plans skill: read all key files (chat route, search, embedder, provider, tests, migrations, sidebar, etc.) to write precise plan with exact code
-- Key observations captured in plan: `messages.id` is bigint (not uuid), `hybridSearch()` already returns `queryTokenCount`, next migration = 00014
+- Executed all 21 Phase 5 tasks via subagent-driven development
+- Used `bypassPermissions` mode for autonomous execution
+- Batched related tasks into single subagents (9+10, 11+12, 13+14, 15+16, 17-20)
+- Added ShadCN Tabs component
+- 15 commits on `phase-5-eval-cost` branch
 
 ## Next Steps
-1. **Choose execution method** — subagent-driven (this session) vs parallel session
-2. **Execute Phase 5** — 21 tasks: migrations, cost tracking, eval system, feedback UI, dashboards
-3. **Phase 6: PropTech Demo & Polish**
+1. **Merge `phase-5-eval-cost` to `main`** — user preference: merge locally (solo dev)
+2. **Phase 6: PropTech Demo & Polish** — next major phase
 
 ## Key Decisions
 - No `src/` directory — root-level app/, components/, lib/
@@ -65,6 +83,7 @@ User was asked to choose execution method (subagent-driven or parallel session) 
 - **Phase 5: Model rates in DB** — admin page for managing, not hardcoded
 - **Phase 5: Multi-dimension rubric** — faithfulness, relevance, completeness (1-5 each)
 - **Phase 5: Feedback loop** — thumbs up/down → convert to eval test cases
+- **Phase 5: Subagent-driven execution** — fresh subagent per task batch, bypassPermissions mode
 
 ## Open Questions
 - Role-based sidebar visibility: when to wire up the actual role check
@@ -74,34 +93,11 @@ User was asked to choose execution method (subagent-driven or parallel session) 
 - Sources display for historical messages (stored in DB but not yet passed to UI)
 - Chat UI polish items (user noted "things I'd like to change" — deferred to later)
 
-## Key Files
-### Phase 5 (Eval & Cost) — DESIGN ONLY
-- `docs/plans/2026-02-19-phase-5-eval-cost-design.md` — Approved design doc
-
-### Phase 4 (Chat Interface) — COMPLETE
-- `app/api/chat/route.ts` — Streaming chat endpoint
-- `app/(dashboard)/chat/page.tsx` + `actions.ts` — Chat page + server actions
-- `components/chat/chat-interface.tsx` — Client component with useChat
-- `components/ai/` — shadcn.io AI components (message, conversation, prompt-input, sources)
-- `tests/unit/chat.test.ts` — 21 tests
-- `tests/e2e/chat.spec.ts` — 6 Playwright tests
-
-### Sidebar & Layout
-- `components/app-sidebar.tsx` — ShadCN sidebar-07 adapted (App + Admin nav)
-- `components/nav-main.tsx` — Flat nav with active state
-- `components/nav-user.tsx` + `team-switcher.tsx` — From sidebar-07
-- `app/(dashboard)/layout.tsx` — SidebarProvider + SidebarInset layout
-
-### Tailwind v4
-- `app/globals.css` — CSS-based config with @theme inline
-- `postcss.config.mjs` — @tailwindcss/postcss
-- `tailwind.config.ts` — DELETED (config now in CSS)
-
 ## Commands
 ```bash
 pnpm dev                    # Start Next.js dev server
 pnpm build                  # Build for production
-pnpm vitest run             # Run TypeScript tests (40 tests)
+pnpm vitest run             # Run TypeScript tests (64 tests)
 npx playwright test         # Run Playwright e2e tests (6 tests)
 pnpm db:types               # Regenerate types from schema
 
