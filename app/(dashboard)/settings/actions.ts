@@ -128,3 +128,32 @@ export async function seedDefaultRates() {
   revalidatePath("/settings");
   return { success: true };
 }
+
+export async function getSystemPrompt(): Promise<string | null> {
+  const { supabase, organizationId } = await getCurrentOrg();
+
+  const { data } = await supabase
+    .from("organizations")
+    .select("system_prompt")
+    .eq("id", organizationId)
+    .single();
+
+  return data?.system_prompt ?? null;
+}
+
+export async function updateSystemPrompt(prompt: string | null) {
+  const { supabase, organizationId } = await getCurrentOrg();
+
+  const { error } = await supabase
+    .from("organizations")
+    .update({ system_prompt: prompt || null })
+    .eq("id", organizationId);
+
+  if (error) {
+    console.error("Update system prompt failed:", error);
+    return { error: "Failed to update system prompt" };
+  }
+
+  revalidatePath("/settings");
+  return { success: true };
+}
