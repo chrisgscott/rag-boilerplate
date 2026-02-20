@@ -14,7 +14,7 @@ const REFUSAL_MESSAGE =
   "I don't have enough information in the available documents to answer that question.";
 
 function getSimilarityThreshold(): number {
-  return parseFloat(process.env.SIMILARITY_THRESHOLD ?? "0.7");
+  return parseFloat(process.env.SIMILARITY_THRESHOLD ?? "0.3");
 }
 
 export async function POST(req: Request) {

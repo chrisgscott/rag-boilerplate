@@ -100,7 +100,7 @@ pnpm tsc --noEmit          # Type check only
 - Don't expose service_role key in client code — server-only
 - Don't chunk through tables — extract tables as complete units
 - Don't use naive fixed-size chunking — use recursive with overlap
-- Don't skip the similarity threshold — refuse to answer below 0.7
+- Don't skip the similarity threshold — refuse to answer below 0.3 (text-embedding-3-small produces lower-magnitude similarities than older models)
 
 ## Project Directory Guide
 
