@@ -207,6 +207,194 @@ export type Database = {
           },
         ]
       }
+      eval_results: {
+        Row: {
+          avg_completeness: number | null
+          avg_faithfulness: number | null
+          avg_relevance: number | null
+          config: Json
+          created_at: string
+          error_message: string | null
+          id: string
+          mrr: number | null
+          organization_id: string
+          per_case_results: Json | null
+          precision_at_k: number | null
+          recall_at_k: number | null
+          status: string
+          test_set_id: string
+        }
+        Insert: {
+          avg_completeness?: number | null
+          avg_faithfulness?: number | null
+          avg_relevance?: number | null
+          config?: Json
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          mrr?: number | null
+          organization_id: string
+          per_case_results?: Json | null
+          precision_at_k?: number | null
+          recall_at_k?: number | null
+          status?: string
+          test_set_id: string
+        }
+        Update: {
+          avg_completeness?: number | null
+          avg_faithfulness?: number | null
+          avg_relevance?: number | null
+          config?: Json
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          mrr?: number | null
+          organization_id?: string
+          per_case_results?: Json | null
+          precision_at_k?: number | null
+          recall_at_k?: number | null
+          status?: string
+          test_set_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eval_results_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eval_results_test_set_id_fkey"
+            columns: ["test_set_id"]
+            isOneToOne: false
+            referencedRelation: "eval_test_sets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      eval_test_cases: {
+        Row: {
+          created_at: string
+          expected_answer: string | null
+          expected_source_ids: string[] | null
+          id: string
+          question: string
+          test_set_id: string
+        }
+        Insert: {
+          created_at?: string
+          expected_answer?: string | null
+          expected_source_ids?: string[] | null
+          id?: string
+          question: string
+          test_set_id: string
+        }
+        Update: {
+          created_at?: string
+          expected_answer?: string | null
+          expected_source_ids?: string[] | null
+          id?: string
+          question?: string
+          test_set_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eval_test_cases_test_set_id_fkey"
+            columns: ["test_set_id"]
+            isOneToOne: false
+            referencedRelation: "eval_test_sets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      eval_test_sets: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eval_test_sets_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      message_feedback: {
+        Row: {
+          comment: string | null
+          converted_to_test_case_id: string | null
+          created_at: string
+          id: string
+          message_id: number
+          organization_id: string
+          rating: number
+          user_id: string
+        }
+        Insert: {
+          comment?: string | null
+          converted_to_test_case_id?: string | null
+          created_at?: string
+          id?: string
+          message_id: number
+          organization_id: string
+          rating: number
+          user_id: string
+        }
+        Update: {
+          comment?: string | null
+          converted_to_test_case_id?: string | null
+          created_at?: string
+          id?: string
+          message_id?: number
+          organization_id?: string
+          rating?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_feedback_converted_to_test_case_id_fkey"
+            columns: ["converted_to_test_case_id"]
+            isOneToOne: false
+            referencedRelation: "eval_test_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_feedback_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_feedback_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string
@@ -257,6 +445,47 @@ export type Database = {
             columns: ["parent_message_id"]
             isOneToOne: false
             referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      model_rates: {
+        Row: {
+          created_at: string
+          embedding_rate: number | null
+          id: string
+          input_rate: number
+          model_id: string
+          organization_id: string
+          output_rate: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          embedding_rate?: number | null
+          id?: string
+          input_rate?: number
+          model_id: string
+          organization_id: string
+          output_rate?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          embedding_rate?: number | null
+          id?: string
+          input_rate?: number
+          model_id?: string
+          organization_id?: string
+          output_rate?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "model_rates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -340,6 +569,62 @@ export type Database = {
           {
             foreignKeyName: "profiles_current_organization_id_fkey"
             columns: ["current_organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      usage_logs: {
+        Row: {
+          chunks_retrieved: number | null
+          created_at: string
+          embedding_cost: number | null
+          embedding_tokens: number | null
+          id: number
+          llm_cost: number | null
+          llm_input_tokens: number | null
+          llm_output_tokens: number | null
+          model: string | null
+          organization_id: string
+          query_text: string | null
+          total_cost: number | null
+          user_id: string | null
+        }
+        Insert: {
+          chunks_retrieved?: number | null
+          created_at?: string
+          embedding_cost?: number | null
+          embedding_tokens?: number | null
+          id?: never
+          llm_cost?: number | null
+          llm_input_tokens?: number | null
+          llm_output_tokens?: number | null
+          model?: string | null
+          organization_id: string
+          query_text?: string | null
+          total_cost?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          chunks_retrieved?: number | null
+          created_at?: string
+          embedding_cost?: number | null
+          embedding_tokens?: number | null
+          id?: never
+          llm_cost?: number | null
+          llm_input_tokens?: number | null
+          llm_output_tokens?: number | null
+          model?: string | null
+          organization_id?: string
+          query_text?: string | null
+          total_cost?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usage_logs_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
