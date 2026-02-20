@@ -7,7 +7,7 @@ import {
   FlaskConical,
   BarChart3,
   Settings,
-  Building2,
+  ShieldCheck,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -31,29 +31,32 @@ const adminNav = [
   { title: "Evaluation", url: "/eval", icon: FlaskConical },
   { title: "Usage", url: "/usage", icon: BarChart3 },
   { title: "Settings", url: "/settings", icon: Settings },
+  { title: "Admin", url: "/admin", icon: ShieldCheck },
 ]
 
-// TODO: Replace with real org data from Supabase
-const teams = [
-  {
-    name: "My Organization",
-    logo: Building2,
-    plan: "Pro",
-  },
-]
-
-// TODO: Replace with real user data from auth session
-const user = {
-  name: "User",
-  email: "",
-  avatar: "",
+export type OrgData = {
+  id: string
+  name: string
+  isDemo: boolean
+  role: string
 }
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({
+  userData,
+  orgs,
+  currentOrgId,
+  ...props
+}: React.ComponentProps<typeof Sidebar> & {
+  userData: { name: string; email: string; avatar: string } | null
+  orgs: OrgData[]
+  currentOrgId: string | null
+}) {
+  const user = userData ?? { name: "User", email: "", avatar: "" }
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={teams} />
+        <TeamSwitcher orgs={orgs} currentOrgId={currentOrgId} />
       </SidebarHeader>
       <SidebarContent>
         <NavMain label="App" items={appNav} />

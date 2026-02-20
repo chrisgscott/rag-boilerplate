@@ -1,7 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { ChevronsUpDown, Plus } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { ChevronsUpDown, Building2 } from "lucide-react"
 
 import {
   DropdownMenu,
@@ -9,7 +10,6 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -18,21 +18,36 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import type { OrgData } from "@/components/app-sidebar"
+
+async function switchOrg(orgId: string) {
+  const res = await fetch("/api/switch-org", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ organizationId: orgId }),
+  });
+  return res.ok;
+}
 
 export function TeamSwitcher({
-  teams,
+  orgs,
+  currentOrgId,
 }: {
-  teams: {
-    name: string
-    logo: React.ElementType
-    plan: string
-  }[]
+  orgs: OrgData[]
+  currentOrgId: string | null
 }) {
   const { isMobile } = useSidebar()
-  const [activeTeam, setActiveTeam] = React.useState(teams[0])
+  const router = useRouter()
+  const activeOrg = orgs.find((o) => o.id === currentOrgId) ?? orgs[0]
 
-  if (!activeTeam) {
+  if (!activeOrg) {
     return null
+  }
+
+  const handleSwitch = async (orgId: string) => {
+    if (orgId === currentOrgId) return
+    const ok = await switchOrg(orgId)
+    if (ok) router.refresh()
   }
 
   return (
@@ -45,11 +60,11 @@ export function TeamSwitcher({
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                <activeTeam.logo className="size-4" />
+                <span className="text-sm font-bold">{activeOrg.name.charAt(0).toUpperCase()}</span>
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{activeTeam.name}</span>
-                <span className="truncate text-xs">{activeTeam.plan}</span>
+                <span className="truncate font-medium">{activeOrg.name}</span>
+                <span className="truncate text-xs">{activeOrg.isDemo ? "Demo" : activeOrg.role}</span>
               </div>
               <ChevronsUpDown className="ml-auto" />
             </SidebarMenuButton>
@@ -61,28 +76,23 @@ export function TeamSwitcher({
             sideOffset={4}
           >
             <DropdownMenuLabel className="text-muted-foreground text-xs">
-              Teams
+              Organizations
             </DropdownMenuLabel>
-            {teams.map((team, index) => (
+            {orgs.map((org) => (
               <DropdownMenuItem
-                key={team.name}
-                onClick={() => setActiveTeam(team)}
+                key={org.id}
+                onClick={() => handleSwitch(org.id)}
                 className="gap-2 p-2"
               >
                 <div className="flex size-6 items-center justify-center rounded-md border">
-                  <team.logo className="size-3.5 shrink-0" />
+                  <Building2 className="size-3.5 shrink-0" />
                 </div>
-                {team.name}
-                <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>
+                {org.name}
+                {org.isDemo && (
+                  <span className="ml-auto text-xs text-muted-foreground">Demo</span>
+                )}
               </DropdownMenuItem>
             ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="gap-2 p-2">
-              <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
-                <Plus className="size-4" />
-              </div>
-              <div className="text-muted-foreground font-medium">Add team</div>
-            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
