@@ -10,17 +10,15 @@ from src.parser import Section
 
 logger = logging.getLogger(__name__)
 
-VLM_PROMPT = """You are analyzing a page from a document. Describe ALL visual elements \
-(charts, diagrams, images, figures) on this page in detail.
+VLM_PROMPT = """Summarize what the visual elements on this page communicate. \
+For each chart, diagram, or figure, state:
+1. What it represents (e.g. "a flywheel showing 18 SDA methodologies")
+2. The key data, relationships, or conclusions it conveys
+3. Any specific names, labels, or values shown
 
-Focus on:
-- Data values, trends, and relationships shown in charts/graphs
-- Labels, legends, axis titles, and annotations
-- Structural relationships in diagrams or flowcharts
-- Key takeaways a reader would extract from the visual
-
-Write in plain prose suitable for text search. Do not describe decorative \
-elements, page layout, or formatting. If there are no meaningful visual \
+Be concise — 2-4 sentences per visual. Write in plain prose optimized for \
+text search. Focus on meaning, not appearance. Do not describe layout, \
+colors, arrows, or decorative elements. If there are no meaningful visual \
 elements, respond with "NO_VISUAL_CONTENT"."""
 
 NO_VISUAL_SENTINEL = "NO_VISUAL_CONTENT"
@@ -107,7 +105,9 @@ def upload_page_images(
             image.save(buf, format="WEBP", quality=80)
             buf.seek(0)
             supabase.storage.from_("documents").upload(
-                storage_path, buf.getvalue(), {"content-type": "image/webp"}
+                storage_path,
+                buf.getvalue(),
+                {"content-type": "image/webp", "upsert": "true"},
             )
             paths[page_no] = storage_path
             logger.info(f"Uploaded page image: {storage_path}")
