@@ -1,8 +1,8 @@
 # Project Plan — RAG Boilerplate
 
 ## Current Status
-- **Phase:** Phase 6 COMPLETE + VLM + Eval + Reranking
-- **Progress:** Phases 1–6 complete, VLM, eval run, BM25 fix (AND→OR), Cohere reranking implemented
+- **Phase:** Phase 6 COMPLETE + VLM + Eval + Reranking + Prompt Tuning
+- **Progress:** Phases 1–6 complete, VLM, 4 eval runs, BM25 OR fix, Cohere reranking, prompt tuning, 25 test cases
 - **Branch:** `main` (needs commit + push)
 - **Repo:** `https://github.com/chrisgscott/rag-boilerplate.git`
 - **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 26 migrations applied
@@ -19,17 +19,17 @@
 - Phase 6: PropTech Demo & Polish (12 commits)
 
 ## Recent Changes (This Session)
-- **Eval run:** First eval on PropTech Demo test set — P@k 0.93, R@k 0.93, MRR 1.00, F 4.0, R 4.6, C 3.9
-- **BM25 AND→OR fix:** `websearch_to_tsquery` ANDs all terms, returning zero results for natural language questions. Migration 00026 switches to OR-based tsquery (`plainto_tsquery` with `&` replaced by `|`). Recall improved 0.93→1.00.
-- **Cohere reranking:** Added `cohere-ai` SDK, `lib/rag/reranker.ts`, wired into `search.ts`. When `COHERE_API_KEY` is set, over-fetches 4x candidates from hybrid_search, reranks with `rerank-v3.5`, returns top N. Opt-in via env var.
-- **Eval config cleanup:** `similarityThreshold: 0.7` → `0` in eval config (it was never applied, now documented as intentional).
-- **Tests:** 70→72 TS tests (+2 reranking tests in search.test.ts).
+- **Prompt tuning:** Softened system prompt refusal behavior in `lib/rag/prompt.ts`. Split single rule into: (1) answer with partial info and note gaps, (2) only refuse when context contains nothing relevant. Fixed LLM over-refusal on parking question (F 1→3, R 1→3, C 1→2).
+- **Copy Results button:** Added one-click clipboard copy to eval results page (`components/eval/eval-results.tsx`). Formats summary + per-case results as markdown table for pasting into chat.
+- **Expanded eval test set:** Created 18 new QA pairs covering uncovered document sections (utilities, maintenance, lease renewal, insurance, early termination, fitness, EV charging, balcony, HOA fines, trash, move-in, cat registration, conference room, packages, fire safety, windows, tornado, unit mods). Inserted directly into `eval_test_cases` table in Supabase Cloud. Total: 25 test cases (was 7).
+- **QA pairs also added to `lib/demo/content.ts`** for future re-seeds.
+- **Previous session:** BM25 OR fix, Cohere reranking, eval config cleanup, 72 TS + 46 Python tests.
 
 ## Next Steps
-1. **Run eval with reranking** — user is running now with `COHERE_API_KEY` set
-2. **Commit + push** all changes (BM25 fix, reranking, eval config)
+1. **Run eval with 25 test cases** — expanded test set ready, need to run eval from UI
+2. **Commit + push** all changes (prompt tuning, copy button, expanded QA pairs)
 3. **Deploy to Render** — add `VLM_ENABLED=true`, `COHERE_API_KEY` env vars, test end-to-end
-4. **Prompt tuning** — LLM hedges on parking/pool questions despite having context (system prompt "if context doesn't contain enough" is too cautious)
+4. **Consider OpenAI Responses API** — built-in tool calling (web search) could enhance capabilities
 
 ## Key Decisions
 - No `src/` directory — root-level app/, components/, lib/
@@ -53,15 +53,17 @@
 - **Cohere reranking** — `cohere-ai` SDK, `rerank-v3.5` model, opt-in via `COHERE_API_KEY` env var; over-fetch 4x candidates from hybrid_search, rerank down to final count
 
 ## Eval Results History
-| Run | BM25 | Rerank | P@k | R@k | MRR | F | R | C |
-|-----|------|--------|-----|-----|-----|---|---|---|
-| 1 | AND | No | 0.93 | 0.93 | 1.00 | 4.0 | 4.6 | 3.9 |
-| 2 | OR | No | 0.69 | 1.00 | 1.00 | 4.3 | 4.6 | 4.0 |
-| 3 | OR | Yes | TBD | TBD | TBD | TBD | TBD | TBD |
+| Run | BM25 | Rerank | Prompt | P@k | R@k | MRR | F | R | C | Cases |
+|-----|------|--------|--------|-----|-----|-----|---|---|---|-------|
+| 1 | AND | No | Old | 0.93 | 0.93 | 1.00 | 4.0 | 4.6 | 3.9 | 7 |
+| 2 | OR | No | Old | 0.69 | 1.00 | 1.00 | 4.3 | 4.6 | 4.0 | 7 |
+| 3 | OR | Yes | Old | 0.76 | 0.93 | 1.00 | 4.1 | 4.4 | 3.9 | 7 |
+| 4 | OR | Yes | New | 0.76 | 0.93 | 1.00 | 4.4 | 4.7 | 3.7 | 7 |
+| 5 | OR | Yes | New | TBD | TBD | TBD | TBD | TBD | TBD | 25 |
 
 ## Future Enhancements
 - **Inline citations (Perplexity-style)** — ShadCN `inline-citation` component installed. Medium-lift — save for post-launch polish.
-- **Prompt tuning** — LLM over-refuses on parking/pool questions. System prompt "if context doesn't contain enough" is too conservative.
+- **OpenAI Responses API** — built-in tool calling (web search) could enhance capabilities. Vercel AI SDK abstracts the API layer, so switching would be straightforward if needed.
 
 ## Open Questions
 - Role-based sidebar visibility (YAGNI'd out of Phase 6)

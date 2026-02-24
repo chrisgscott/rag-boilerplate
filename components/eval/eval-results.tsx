@@ -2,6 +2,7 @@
 
 import { Fragment, useState, useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -16,7 +17,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, ClipboardCopy, Check } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { EvalResultSummary } from "@/app/(dashboard)/eval/actions";
@@ -121,6 +122,88 @@ function AnswerQualityScores({ faithfulness, relevance, completeness }: { faithf
       <QualityScore score={relevance} label="R" tooltip="Relevance — does the answer address the question asked?" />
       <QualityScore score={completeness} label="C" tooltip="Completeness — does the answer cover all key points?" />
     </div>
+  );
+}
+
+function fmt(n: number | null | undefined, decimals = 2): string {
+  return n != null ? n.toFixed(decimals) : "--";
+}
+
+function formatResultsForCopy(summary: EvalResultSummary, cases: PerCaseResult[]): string {
+  const date = new Date(summary.createdAt).toLocaleDateString();
+  const config = summary.config ?? {};
+  const lines: string[] = [];
+
+  lines.push(`## Eval: ${summary.testSetName} — ${date}`);
+  lines.push(`Config: model=${config.model ?? "?"}, topK=${config.topK ?? "?"}`);
+  lines.push("");
+  lines.push("### Summary");
+  lines.push("| P@k | R@k | MRR | F | R | C |");
+  lines.push("|-----|-----|-----|---|---|---|");
+  lines.push(
+    `| ${fmt(summary.precisionAtK)} | ${fmt(summary.recallAtK)} | ${fmt(summary.mrr)} | ${fmt(summary.avgFaithfulness, 1)} | ${fmt(summary.avgRelevance, 1)} | ${fmt(summary.avgCompleteness, 1)} |`
+  );
+
+  if (cases.length > 0) {
+    lines.push("");
+    lines.push("### Per-Case");
+    lines.push("| Question | P@k | R@k | MRR | F | R | C |");
+    lines.push("|----------|-----|-----|-----|---|---|---|");
+    for (const c of cases) {
+      const q = c.question.length > 80 ? c.question.slice(0, 77) + "..." : c.question;
+      const f = fmt(c.judgeScores?.faithfulness, 1);
+      const r = fmt(c.judgeScores?.relevance, 1);
+      const comp = fmt(c.judgeScores?.completeness, 1);
+      lines.push(`| ${q} | ${fmt(c.precisionAtK)} | ${fmt(c.recallAtK)} | ${fmt(c.mrr)} | ${f} | ${r} | ${comp} |`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function CopyResultsButton({
+  summary,
+  detailCache,
+}: {
+  summary: EvalResultSummary;
+  detailCache: Record<string, PerCaseResult[]>;
+}) {
+  const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  async function handleCopy(e: React.MouseEvent) {
+    e.stopPropagation();
+    setLoading(true);
+    try {
+      let cases = detailCache[summary.id];
+      if (!cases) {
+        cases = await getEvalResultDetail(summary.id);
+      }
+      const text = formatResultsForCopy(summary, cases);
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // silently fail
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="h-7 w-7"
+      onClick={handleCopy}
+      disabled={loading || summary.status !== "complete"}
+    >
+      {copied ? (
+        <Check className="h-3.5 w-3.5 text-green-500" />
+      ) : (
+        <ClipboardCopy className="h-3.5 w-3.5" />
+      )}
+    </Button>
   );
 }
 
@@ -245,7 +328,10 @@ export function EvalResults({ results }: { results: EvalResultSummary[] }) {
                   <AnswerQualityScores faithfulness={r.avgFaithfulness} relevance={r.avgRelevance} completeness={r.avgCompleteness} />
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {new Date(r.createdAt).toLocaleDateString()}
+                  <div className="flex items-center gap-1">
+                    {new Date(r.createdAt).toLocaleDateString()}
+                    <CopyResultsButton summary={r} detailCache={detailCache} />
+                  </div>
                 </TableCell>
               </TableRow>
               {expandedId === r.id && (

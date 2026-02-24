@@ -433,4 +433,129 @@ export const DEMO_EVAL_TEST_CASES = [
       "Community-Guidelines.md",
     ],
   },
+  // --- New QA pairs (added for larger eval sample size) ---
+  {
+    question: "Which utilities am I responsible for, and which does the landlord cover?",
+    expected_answer:
+      "You are responsible for electricity (ComEd), internet/cable, and renter's insurance. The landlord covers water and sewer, trash removal, and gas/heating.",
+    expected_doc_names: ["Residential-Lease-Agreement.md"],
+  },
+  {
+    question:
+      "My kitchen faucet is leaking. Whose responsibility is it to fix, and how do I report it?",
+    expected_answer:
+      "Plumbing repairs are the landlord's responsibility. Submit a non-emergency request via the resident portal within 48 hours of identifying the issue. Non-emergency requests are addressed within 5 business days. For emergencies, call 555-0199 (24/7 emergency line).",
+    expected_doc_names: ["Residential-Lease-Agreement.md"],
+  },
+  {
+    question: "What happens when my lease expires if I don't renew?",
+    expected_answer:
+      "If neither party provides 60-day written notice before expiration, the lease auto-renews on a month-to-month basis at $1,595.00/month (up from $1,450). The landlord will provide renewal terms at least 90 days before lease expiration.",
+    expected_doc_names: ["Residential-Lease-Agreement.md"],
+  },
+  {
+    question: "What renter's insurance coverage do I need?",
+    expected_answer:
+      "You must maintain renter's insurance throughout the lease term with minimum coverage of $100,000 personal liability and $30,000 personal property. Sunrise Properties LLC must be listed as Additional Interested Party. Proof of insurance is due within 14 days of move-in.",
+    expected_doc_names: ["Residential-Lease-Agreement.md"],
+  },
+  {
+    question: "Can I break my lease early? What are the penalties?",
+    expected_answer:
+      "Yes, with 60 days written notice plus an early termination fee of 2 months' rent ($2,900). Active duty military members are exempt from the early termination fee under the SCRA. Victims of domestic violence may also terminate early with a protective order per state law.",
+    expected_doc_names: ["Residential-Lease-Agreement.md"],
+  },
+  {
+    question: "When is the fitness center open, and can I bring a guest?",
+    expected_answer:
+      "The fitness center is open 5:00 AM to 11:00 PM daily. You can bring up to 4 guests, but they must be accompanied by you at all times and need a guest pass at $5/day per guest.",
+    expected_doc_names: ["HOA-Rules-and-Regulations.md"],
+  },
+  {
+    question: "Where can I charge my electric vehicle?",
+    expected_answer:
+      "Electric vehicle charging stations are located in the parking garage on a first-come, first-served basis with a 4-hour maximum charging limit.",
+    expected_doc_names: ["HOA-Rules-and-Regulations.md"],
+  },
+  {
+    question: "Can I use a grill on my balcony?",
+    expected_answer:
+      "Yes, but only electric grills are allowed — no charcoal or propane. Additionally, no storage of non-decorative items visible from outside, no hanging laundry or towels, and holiday decorations are only permitted November 15 through January 15. Plants are allowed but must not drain water onto lower units.",
+    expected_doc_names: ["HOA-Rules-and-Regulations.md"],
+  },
+  {
+    question:
+      "I got an HOA fine. How do I appeal it, and what happens if I don't pay?",
+    expected_answer:
+      "You can appeal the fine in writing within 14 days of the notice. Fines are due within 30 days and unpaid fines accrue 1.5% monthly interest. After 90 days, unpaid fines may be reported to credit bureaus.",
+    expected_doc_names: ["HOA-Rules-and-Regulations.md"],
+  },
+  {
+    question: "How do I get rid of an old couch?",
+    expected_answer:
+      "Schedule a bulk pickup with management for a $25 fee. Standard household waste goes in the trash chute on each floor. Recycling bins are in parking garage level B1. Construction debris must be removed by your contractor, and electronics go to e-waste collection in the package room.",
+    expected_doc_names: ["HOA-Rules-and-Regulations.md"],
+  },
+  {
+    question: "What do I need to do before and on move-in day?",
+    expected_answer:
+      "Before move-in: sign your lease, pay security deposit and first month's rent, provide proof of renter's insurance, schedule your move-in date and elevator reservation at least 7 days in advance, and collect keys/fobs/parking pass from the management office (Mon–Fri, 9 AM–5 PM). On move-in day: check in with management, use the service elevator only, ensure floor protection in hallways and elevators ($200 refundable deposit), and complete the unit condition report within 48 hours.",
+    expected_doc_names: ["Community-Guidelines.md"],
+  },
+  {
+    question: "I'm moving in with a cat. What do I need to do to register it?",
+    expected_answer:
+      "Register your cat with management within 7 days of move-in. You'll need a completed pet registration form, current vaccination records, a photo of the pet, and the $500 non-refundable pet deposit. Cats must be in carriers when in common areas. Pets are not allowed in the fitness center, pool area, business center, or rooftop terrace. Monthly pet rent is $35 per pet.",
+    expected_doc_names: [
+      "Community-Guidelines.md",
+      "Residential-Lease-Agreement.md",
+    ],
+  },
+  {
+    question: "Can I book the conference room for a work meeting?",
+    expected_answer:
+      "Yes, the business center conference room can be reserved via the resident portal in 2-hour blocks at no charge. It seats up to 8 people and can be booked up to 7 days in advance. Note the no-show policy: 2 no-shows result in a 30-day booking suspension. The business center is open 7:00 AM to 9:00 PM daily.",
+    expected_doc_names: [
+      "Community-Guidelines.md",
+      "HOA-Rules-and-Regulations.md",
+    ],
+  },
+  {
+    question:
+      "I'm expecting a large package. Where will it be stored and how long do I have to pick it up?",
+    expected_answer:
+      "Oversized packages are stored in the management office. Standard packages go to the package room and you'll receive an email notification when they arrive. Packages must be retrieved within 7 days or they'll be returned to sender. No perishable deliveries are accepted — use the pickup lockers in the lobby instead. The package room is open 7:00 AM to 9:00 PM.",
+    expected_doc_names: [
+      "Community-Guidelines.md",
+      "HOA-Rules-and-Regulations.md",
+    ],
+  },
+  {
+    question: "What do I do if the fire alarm goes off?",
+    expected_answer:
+      "Do NOT use the elevators. Know your nearest exit (posted on the back of your unit door). Fire extinguishers are located in the hallways on each floor. Gather at the designated assembly point: the Lakeview Drive parking lot entrance. For emergencies, call 911. The building's 24/7 emergency line is 555-0199.",
+    expected_doc_names: ["Community-Guidelines.md"],
+  },
+  {
+    question:
+      "Can I put a flag in my window or hang a wreath on my front door?",
+    expected_answer:
+      "No flags, signs, or banners are allowed in windows (except small security system decals). Window treatments must present a uniform appearance from outside with white or neutral backing. For your door, decorations cannot exceed 18\" x 18\". Approved wreath holders are available from management. No modifications to door hardware or locks without management approval.",
+    expected_doc_names: ["HOA-Rules-and-Regulations.md"],
+  },
+  {
+    question: "Where should I go during a tornado warning?",
+    expected_answer:
+      "Shelter in interior rooms away from windows. The building's storm shelter is located in parking garage level B2. Weather alerts are posted via resident portal push notifications. For emergencies call 911, and the building's 24/7 emergency line is 555-0199.",
+    expected_doc_names: ["Community-Guidelines.md"],
+  },
+  {
+    question: "Can I paint my apartment or install shelving?",
+    expected_answer:
+      "Not without written consent from the landlord. You cannot alter, paint, or modify the unit without written consent. Satellite dishes, antennas, and exterior modifications are also prohibited. If approved, unit improvement work hours are restricted to 9:00 AM – 5:00 PM, Monday through Friday only. Unauthorized structural modifications are considered a serious violation that can result in an immediate $500 fine and/or eviction proceedings.",
+    expected_doc_names: [
+      "Residential-Lease-Agreement.md",
+      "HOA-Rules-and-Regulations.md",
+    ],
+  },
 ];
