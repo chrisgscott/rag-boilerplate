@@ -1,8 +1,8 @@
 # Project Plan — RAG Boilerplate
 
 ## Current Status
-- **Phase:** Phase 6 COMPLETE + VLM visual extraction LIVE-TESTED
-- **Progress:** Phases 1–6 complete, VLM feature implemented and tested with real PDFs
+- **Phase:** Phase 6 COMPLETE + VLM switched to OpenAI + Visuals tab in progress
+- **Progress:** Phases 1–6 complete, VLM working with GPT-4o-mini, all 4 PDFs reprocessed
 - **Branch:** `main`
 - **Repo:** `https://github.com/chrisgscott/rag-boilerplate.git`
 - **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 25 migrations applied
@@ -19,20 +19,28 @@
 - Phase 6: PropTech Demo & Polish (12 commits)
 
 ## Recent Changes (This Session)
-- **VLM live-tested and debugged** (3 fix commits on top of 5 implementation commits):
-  - **Fix 1:** Docling needs `generate_page_images=True` in `PdfPipelineOptions` — page images are off by default. Added conditional config in `parser.py:get_converter()` when `GOOGLE_API_KEY` is set.
-  - **Fix 2:** Gemini free tier rate limits (5 RPM / 20 RPD). Added retry with backoff (15s/30s/45s) for 429 errors. Reduced default `vlm_concurrency` from 10 to 5.
-  - **Fix 3:** Supabase Storage bucket didn't allow `image/webp`. Migration 00025 adds it. Upload uses `upsert: "true"` for reprocessing.
-  - **Prompt revision:** Rewrote VLM prompt to focus on meaning over appearance — 3x more token-efficient (3,086 vs 8,895 tokens for same doc), better search relevance.
-  - **Live test results:** Strategic_Design_System_For_Momentum.pdf (13 pages, 28 pictures) → 12 pages with images detected, VLM descriptions enriching chunks with methodology names, relationships, and semantic content.
+- **VLM switched from Gemini to OpenAI GPT-4o-mini:**
+  - Gemini free tier rate limits (5 RPM / 20 RPD) were unresolvable — no billing upgrade path available in AI Studio
+  - Replaced `google-genai` dependency with OpenAI SDK (already present for embeddings)
+  - Config: removed `google_api_key`, added `vlm_enabled: bool = False` + `vlm_model: str = gpt-4o-mini`
+  - Added `extra: "ignore"` to Pydantic Settings model_config for env var tolerance
+  - Tests updated to mock `AsyncOpenAI` instead of `genai`
+  - Result: 12/12 pages described, 0 rate limit errors, 24 chunks / 3,164 tokens — clean run
+- **All 4 PDFs reprocessed** with OpenAI VLM — all completed successfully
+- **Visuals tab added to document detail page** (uncommitted):
+  - Server component extracts `page_image_paths` from chunk metadata
+  - Generates signed Storage URLs (1hr expiry) via `createSignedUrls`
+  - New "Visuals" tab shows page images in 2-column grid with page numbers
+- **Chat sources metadata passthrough** (uncommitted):
+  - `route.ts` x-sources header now includes `pageImagePaths` from chunk metadata
+  - Ready for frontend to display page image thumbnails alongside source citations
 
 ## Next Steps
-1. **Upgrade Gemini API key** to paid tier (free tier: 5 RPM / 20 RPD is too limiting for multi-doc processing)
-2. **Reprocess all 4 PDFs** once rate limits allow (or with paid key)
+1. **Commit current changes** — VLM OpenAI switch + Visuals tab + chat metadata
+2. **Wire up page image thumbnails in chat Source component** — show small image preview when source has pageImagePaths
 3. **Run eval** — verify retrieval scores with VLM-enriched chunks
-4. **Deploy to Render** — add env vars (including GOOGLE_API_KEY), test end-to-end
+4. **Deploy to Render** — add `VLM_ENABLED=true` env var, test end-to-end
 5. **Test demo flow** — chat with assistant, verify sources + visual content
-6. **Display page images in chat sources** (Level 2) — frontend-only change when `page_image_paths` exists in chunk metadata
 
 ## Key Decisions
 - No `src/` directory — root-level app/, components/, lib/
@@ -45,14 +53,14 @@
 - **Phase 6: Demo org approach** — all demo content under one org, cascade delete
 - **Phase 6: Per-org system prompt** — `organizations.system_prompt` column in DB
 - **Service role client** for admin operations — `lib/supabase/admin.ts` bypasses RLS
-- **Gemini 2.5 Flash** for VLM visual extraction — best quality/cost balance (~$0.03/100 pages)
+- **OpenAI GPT-4o-mini** for VLM visual extraction — replaces Gemini (rate limit issues), uses existing API key
+- **VLM_ENABLED flag** — opt-in via env var, replaces implicit google_api_key check
 - **enqueue_ingestion as SECURITY DEFINER** — authenticated role lacks pgmq schema access
 - **Concise VLM prompt** — semantic focus (meaning > appearance), 2-4 sentences per visual, ~3x fewer tokens
-- **Docling generate_page_images=True** — required for VLM, conditionally enabled when GOOGLE_API_KEY set
+- **Docling generate_page_images=True** — required for VLM, conditionally enabled when vlm_enabled=true
 
 ## Future Enhancements
 - **Inline citations (Perplexity-style)** — ShadCN `inline-citation` component installed. Medium-lift — save for post-launch polish.
-- **Page images in chat sources (Level 2)** — Display source page images when `page_image_paths` exists in chunk metadata. Frontend-only change.
 
 ## Open Questions
 - Role-based sidebar visibility (YAGNI'd out of Phase 6)

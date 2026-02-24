@@ -38,5 +38,41 @@ export default async function DocumentDetailPage({
     .eq("document_id", id)
     .order("chunk_index", { ascending: true });
 
-  return <DocumentDetail document={document} chunks={chunks ?? []} />;
+  // Extract unique page images from chunk metadata and generate signed URLs
+  const pageImageMap = new Map<number, string>(); // page_no -> storage_path
+  for (const chunk of chunks ?? []) {
+    const meta = chunk.metadata as Record<string, unknown> | null;
+    const paths = meta?.page_image_paths as Record<string, string> | undefined;
+    if (paths) {
+      for (const [pageNo, storagePath] of Object.entries(paths)) {
+        pageImageMap.set(Number(pageNo), storagePath);
+      }
+    }
+  }
+
+  const pageImages: { pageNumber: number; url: string }[] = [];
+  if (pageImageMap.size > 0) {
+    const storagePaths = [...pageImageMap.values()];
+    const { data: signedUrls } = await supabase.storage
+      .from("documents")
+      .createSignedUrls(storagePaths, 3600); // 1 hour expiry
+
+    if (signedUrls) {
+      const urlMap = new Map<string, string>();
+      for (const item of signedUrls) {
+        if (item.signedUrl) {
+          urlMap.set(item.path ?? "", item.signedUrl);
+        }
+      }
+      for (const [pageNo, storagePath] of pageImageMap.entries()) {
+        const url = urlMap.get(storagePath);
+        if (url) {
+          pageImages.push({ pageNumber: pageNo, url });
+        }
+      }
+      pageImages.sort((a, b) => a.pageNumber - b.pageNumber);
+    }
+  }
+
+  return <DocumentDetail document={document} chunks={chunks ?? []} pageImages={pageImages} />;
 }

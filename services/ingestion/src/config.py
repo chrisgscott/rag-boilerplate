@@ -24,12 +24,12 @@ class Settings(BaseSettings):
     chunk_max_tokens: int = 512
     chunk_overlap: float = 0.15
 
-    # VLM (optional — enables visual extraction when google_api_key is set)
-    google_api_key: str | None = None
-    vlm_model: str = "gemini-2.5-flash"
+    # VLM (optional — enables visual extraction with OpenAI vision models)
+    vlm_enabled: bool = False
+    vlm_model: str = "gpt-4o-mini"
     vlm_concurrency: int = 5
 
-    model_config = {"env_file": ".env"}
+    model_config = {"env_file": ".env", "extra": "ignore"}
 
 
 settings = Settings()

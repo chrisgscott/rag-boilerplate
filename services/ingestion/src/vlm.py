@@ -1,9 +1,10 @@
 import asyncio
+import base64
 import io
 import logging
 
+from openai import AsyncOpenAI
 from PIL import Image
-from google import genai
 
 from src.config import settings
 from src.parser import Section
@@ -22,6 +23,13 @@ colors, arrows, or decorative elements. If there are no meaningful visual \
 elements, respond with "NO_VISUAL_CONTENT"."""
 
 NO_VISUAL_SENTINEL = "NO_VISUAL_CONTENT"
+
+
+def _image_to_base64(image: Image.Image) -> str:
+    """Convert a PIL image to a base64-encoded PNG data URL."""
+    buf = io.BytesIO()
+    image.save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode("utf-8")
 
 
 def get_visual_pages(doc) -> dict[int, Image.Image]:
@@ -52,23 +60,34 @@ async def describe_visual_pages(
     model: str | None = None,
     concurrency: int | None = None,
 ) -> dict[int, str]:
-    """Send page images to Gemini concurrently. Returns {page_no: description}."""
+    """Send page images to OpenAI vision model concurrently. Returns {page_no: description}."""
     model = model or settings.vlm_model
     max_concurrent = concurrency or settings.vlm_concurrency
     semaphore = asyncio.Semaphore(max_concurrent)
 
-    client = genai.Client(api_key=settings.google_api_key)
+    client = AsyncOpenAI(api_key=settings.openai_api_key)
 
     async def describe_page(page_no: int, image: Image.Image) -> tuple[int, str | None]:
         async with semaphore:
             max_retries = 3
             for attempt in range(max_retries):
                 try:
-                    response = await client.aio.models.generate_content(
+                    b64 = _image_to_base64(image)
+                    response = await client.chat.completions.create(
                         model=model,
-                        contents=[VLM_PROMPT, image],
+                        messages=[{
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": VLM_PROMPT},
+                                {"type": "image_url", "image_url": {
+                                    "url": f"data:image/png;base64,{b64}",
+                                    "detail": "high",
+                                }},
+                            ],
+                        }],
+                        max_tokens=1000,
                     )
-                    text = response.text.strip()
+                    text = (response.choices[0].message.content or "").strip()
                     if NO_VISUAL_SENTINEL in text:
                         logger.info(f"Page {page_no}: no meaningful visual content")
                         return page_no, None
@@ -76,7 +95,7 @@ async def describe_visual_pages(
                 except Exception as e:
                     error_str = str(e)
                     if "429" in error_str and attempt < max_retries - 1:
-                        wait = (attempt + 1) * 15  # 15s, 30s, 45s
+                        wait = (attempt + 1) * 15
                         logger.info(f"Page {page_no}: rate limited, retrying in {wait}s (attempt {attempt + 1}/{max_retries})")
                         await asyncio.sleep(wait)
                         continue

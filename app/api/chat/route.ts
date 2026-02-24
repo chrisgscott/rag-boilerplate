@@ -220,12 +220,17 @@ export async function POST(req: Request) {
   });
 
   const sourcesHeader = JSON.stringify(
-    relevantResults.map((r) => ({
-      documentId: r.documentId,
-      documentName: r.documentName,
-      chunkId: r.chunkId,
-      chunkIndex: r.chunkIndex,
-    }))
+    relevantResults.map((r) => {
+      const meta = r.metadata as Record<string, unknown> | null;
+      const pageImagePaths = meta?.page_image_paths as Record<string, string> | undefined;
+      return {
+        documentId: r.documentId,
+        documentName: r.documentName,
+        chunkId: r.chunkId,
+        chunkIndex: r.chunkIndex,
+        ...(pageImagePaths ? { pageImagePaths } : {}),
+      };
+    })
   );
 
   return result.toUIMessageStreamResponse({

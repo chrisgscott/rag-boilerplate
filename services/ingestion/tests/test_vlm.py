@@ -65,15 +65,17 @@ class TestGetVisualPages:
 
 class TestDescribeVisualPages:
     @pytest.fixture
-    def mock_genai(self):
-        with patch("src.vlm.genai") as mock:
+    def mock_openai(self):
+        with patch("src.vlm.AsyncOpenAI") as mock:
             yield mock
 
-    async def test_returns_descriptions_keyed_by_page(self, mock_genai):
+    async def test_returns_descriptions_keyed_by_page(self, mock_openai):
         mock_response = MagicMock()
-        mock_response.text = "A bar chart showing quarterly revenue growth."
+        mock_response.choices = [
+            MagicMock(message=MagicMock(content="A bar chart showing quarterly revenue growth."))
+        ]
 
-        mock_genai.Client.return_value.aio.models.generate_content = AsyncMock(
+        mock_openai.return_value.chat.completions.create = AsyncMock(
             return_value=mock_response
         )
 
@@ -87,11 +89,13 @@ class TestDescribeVisualPages:
         assert 7 in result
         assert "bar chart" in result[3]
 
-    async def test_filters_no_visual_content_responses(self, mock_genai):
+    async def test_filters_no_visual_content_responses(self, mock_openai):
         mock_response = MagicMock()
-        mock_response.text = "NO_VISUAL_CONTENT"
+        mock_response.choices = [
+            MagicMock(message=MagicMock(content="NO_VISUAL_CONTENT"))
+        ]
 
-        mock_genai.Client.return_value.aio.models.generate_content = AsyncMock(
+        mock_openai.return_value.chat.completions.create = AsyncMock(
             return_value=mock_response
         )
 
@@ -99,7 +103,7 @@ class TestDescribeVisualPages:
         result = await describe_visual_pages(pages)
         assert result == {}
 
-    async def test_skips_failed_pages(self, mock_genai):
+    async def test_skips_failed_pages(self, mock_openai):
         call_count = 0
 
         async def side_effect(*args, **kwargs):
@@ -108,10 +112,10 @@ class TestDescribeVisualPages:
             if call_count == 1:
                 raise Exception("Rate limit")
             resp = MagicMock()
-            resp.text = "A diagram showing workflow."
+            resp.choices = [MagicMock(message=MagicMock(content="A diagram showing workflow."))]
             return resp
 
-        mock_genai.Client.return_value.aio.models.generate_content = AsyncMock(
+        mock_openai.return_value.chat.completions.create = AsyncMock(
             side_effect=side_effect
         )
 

@@ -19,7 +19,7 @@ def get_converter() -> DocumentConverter:
     global _converter
     if _converter is None:
         format_options = {}
-        if settings.google_api_key:
+        if settings.vlm_enabled:
             logger.info("VLM enabled — configuring PDF pipeline with page image generation")
             pdf_options = PdfPipelineOptions(generate_page_images=True)
             format_options[InputFormat.PDF] = PdfFormatOption(pipeline_options=pdf_options)

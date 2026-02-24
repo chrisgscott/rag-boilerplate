@@ -127,8 +127,8 @@ async def process_message(message: dict) -> None:
             # Parse with Docling
             parse_result = parse_document(tmp_path, doc["mime_type"])
 
-            # VLM visual extraction (optional — runs when GOOGLE_API_KEY is set)
-            if settings.google_api_key and parse_result.docling_doc:
+            # VLM visual extraction (optional — runs when VLM_ENABLED=true)
+            if settings.vlm_enabled and parse_result.docling_doc:
                 visual_pages = get_visual_pages(parse_result.docling_doc)
                 if visual_pages:
                     descriptions = await describe_visual_pages(visual_pages)

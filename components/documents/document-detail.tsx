@@ -5,9 +5,11 @@ import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
+import Image from "next/image";
 import {
   ArrowLeft,
   FileText,
+  ImageIcon,
   Clock,
   Loader2,
   CheckCircle2,
@@ -36,6 +38,11 @@ type Chunk = {
   content: string;
   token_count: number | null;
   metadata: unknown;
+};
+
+type PageImage = {
+  pageNumber: number;
+  url: string;
 };
 
 const STATUS_CONFIG: Record<
@@ -83,9 +90,11 @@ function fileTypeLabel(mime: string) {
 export function DocumentDetail({
   document,
   chunks,
+  pageImages = [],
 }: {
   document: Document;
   chunks: Chunk[];
+  pageImages?: PageImage[];
 }) {
   const status = STATUS_CONFIG[document.status] ?? STATUS_CONFIG.pending;
   const StatusIcon = status.icon;
@@ -143,6 +152,9 @@ export function DocumentDetail({
         <TabsList>
           <TabsTrigger value="parsed">Parsed Content</TabsTrigger>
           <TabsTrigger value="chunks">Chunks ({chunks.length})</TabsTrigger>
+          {pageImages.length > 0 && (
+            <TabsTrigger value="visuals">Visuals ({pageImages.length})</TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="parsed" className="mt-4">
@@ -204,6 +216,33 @@ export function DocumentDetail({
             </div>
           )}
         </TabsContent>
+
+        {pageImages.length > 0 && (
+          <TabsContent value="visuals" className="mt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {pageImages.map((img) => (
+                <Card key={img.pageNumber}>
+                  <CardHeader className="py-3 px-4">
+                    <CardTitle className="text-sm font-medium">
+                      Page {img.pageNumber}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4 pt-0">
+                    <div className="relative w-full aspect-[4/3] bg-muted rounded-md overflow-hidden">
+                      <Image
+                        src={img.url}
+                        alt={`Page ${img.pageNumber}`}
+                        fill
+                        className="object-contain"
+                        unoptimized
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
