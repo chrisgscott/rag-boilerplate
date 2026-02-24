@@ -1,13 +1,12 @@
 # Project Plan — RAG Boilerplate
 
 ## Current Status
-- **Phase:** Phase 6 COMPLETE — PropTech Demo & Polish
-- **Progress:** Phases 1–6 complete on main
-- **Branch:** `main` (up to date with origin, 21 commits pushed)
+- **Phase:** Phase 6 COMPLETE + bugfix session
+- **Progress:** Phases 1–6 complete on main, ingestion pipeline bugs fixed
+- **Branch:** `main` (2 commits ahead of origin)
 - **Repo:** `https://github.com/chrisgscott/rag-boilerplate.git`
-- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 23 migrations applied
-- **Tests:** 70 passing (4 cost + 14 eval-metrics + 6 judge + 7 embedder + 12 search + 24 chat) + 6 Playwright e2e
-- **Build:** Clean production build
+- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 24 migrations applied
+- **Tests:** 70 TS + 27 Python passing, clean build
 - **Tailwind:** v4.2.0
 
 ### What's Done (Phases 1-6) — COMPLETE
@@ -19,40 +18,18 @@
 - Phase 5: Evaluation & cost tracking
 - Phase 6: PropTech Demo & Polish (12 commits)
 
-### Phase 6 Summary — COMPLETE
-**Design doc:** `docs/plans/2026-02-19-phase-6-proptech-demo-polish-design.md`
-**Implementation plan:** `docs/plans/2026-02-19-phase-6-proptech-demo-polish-impl.md`
-
-**Track A: Infrastructure Polish (Tasks 1-10)**
-- 3 migrations (00017-00019): system_prompt + is_demo columns, FK fix, org RLS
-- Per-org system prompt with buildSystemPrompt() (TDD, 3 new tests)
-- Chat route wired to org system prompt
-- System prompt editor on settings page
-- Sidebar wired to real user/org data with org switching API
-- Historical chat messages now surface stored sources
-- Removed hasEnvVars bypass (env vars required in all environments)
-
-**Track B: Demo Experience (Tasks 11-12)**
-- 3 PropTech demo documents (lease, HOA, community guidelines)
-- 7 eval test cases for demo content
-- Admin page at /admin with one-click seed/delete demo lifecycle
-- Demo org "Sunrise Properties" with cascade delete
-
 ## Recent Changes (This Session)
-- **Fix nested button hydration error** — conversation-list.tsx outer `<button>` → `<div role="button">` to avoid `<button>` inside `<button>` (delete button nested in conversation row)
-- **Fix RLS infinite recursion** (migration 00023, applied to Supabase Cloud)
-  - `organization_members` FOR ALL policy directly queried itself → infinite recursion on org UPDATE/DELETE
-  - Created `get_user_owner_organizations()` SECURITY DEFINER function (like `get_user_organizations()` but filtered to owner role)
-  - Updated 3 policies: org_members FOR ALL, organizations UPDATE, organizations DELETE
-  - Settings page system prompt save now works
-- **Embeddable chat widget** idea parked in `.ai/INBOX.md` — script tag / iframe for tenant portals
-- **Tests:** 70 passing, clean build, 23 migrations on Supabase Cloud
+- **Fix enqueue_ingestion permissions** (migration 00024) — `SECURITY INVOKER` → `SECURITY DEFINER` with explicit org membership check. Root cause: `authenticated` role has no USAGE on `pgmq` schema, so the RPC silently failed. Documents uploaded but never queued.
+- **Fix chunker infinite recursion** — `_split_segment` ↔ `_merge_segments` mutual recursion had no base case for single oversized tokens. Added hard character split fallback.
+- **Fix worker retry loop** — `conn.rollback()` after failure undid `pgmq.read` visibility timeout (same transaction). Added `conn.commit()` after read to persist the lock. Messages now properly increment `read_ct` on retry.
+- **Raise upload body size limit** — Next.js 16 requires `experimental.serverActions.bodySizeLimit` (50MB) AND `experimental.proxyClientMaxBodySize` (50MB). Two separate limits.
+- **VLM research completed** — Gemini 2.5 Flash selected for optional visual extraction step ($0.03/100 pages). GOOGLE_API_KEY added to ingestion `.env`. Feature parked in INBOX.md for next session.
 
 ## Next Steps
-1. **Re-seed demo data** — delete existing demo via /admin, re-seed to populate `expected_source_ids` and `expectedAnswer` in new eval runs
-2. **Run eval** — verify retrieval scores now show actual values (not "--") and detail view works
-3. **Deploy to Render** — add SUPABASE_SERVICE_ROLE_KEY env var, test end-to-end
-4. **Run ingestion pipeline** — process the 3 demo documents
+1. **Plan & implement VLM visual extraction** — Gemini 2.5 Flash step in ingestion pipeline for pages with images/charts/diagrams. GOOGLE_API_KEY already configured.
+2. **Re-seed demo data** — delete existing demo via /admin, re-seed
+3. **Run eval** — verify retrieval scores
+4. **Deploy to Render** — add env vars, test end-to-end
 5. **Test demo flow** — chat with PropTech assistant, verify sources
 
 ## Key Decisions
@@ -65,11 +42,13 @@
 - **Phase 5: Custom eval** (not Langfuse) — keeps boilerplate self-contained
 - **Phase 6: Demo org approach** — all demo content under one org, cascade delete
 - **Phase 6: Per-org system prompt** — `organizations.system_prompt` column in DB
-- **Phase 6: Admin page** — /admin with seed + delete demo buttons
 - **Service role client** for admin operations — `lib/supabase/admin.ts` bypasses RLS
+- **Gemini 2.5 Flash** for VLM visual extraction — best quality/cost balance (~$0.03/100 pages)
+- **enqueue_ingestion as SECURITY DEFINER** — authenticated role lacks pgmq schema access; function does explicit org membership check instead of relying on RLS
 
 ## Future Enhancements
-- **Inline citations (Perplexity-style)** — ShadCN `inline-citation` component installed at `components/ai/inline-citation.tsx` + `components/ui/carousel.tsx`. Would replace the collapsible Sources dropdown with inline citation badges that parse `[Document-Name.md]` references from LLM output. Requires: (1) custom Streamdown plugin or post-processor to find bracket citations, (2) mapping document names back to source metadata (documentId, chunkId), (3) rendering `InlineCitation` components inline with streamed text. Medium-lift — save for post-launch polish.
+- **Inline citations (Perplexity-style)** — ShadCN `inline-citation` component installed. Medium-lift — save for post-launch polish.
+- **VLM visual extraction** — Gemini 2.5 Flash for document pages with images/charts/diagrams. See `.ai/INBOX.md`.
 
 ## Open Questions
 - Role-based sidebar visibility (YAGNI'd out of Phase 6)
@@ -80,7 +59,7 @@
 ```bash
 pnpm dev                    # Start Next.js dev server
 pnpm build                  # Build for production
-pnpm vitest run             # Run TypeScript tests (67 tests)
+pnpm vitest run             # Run TypeScript tests (70 tests)
 npx playwright test         # Run Playwright e2e tests (6 tests)
 pnpm db:types               # Regenerate types from schema
 

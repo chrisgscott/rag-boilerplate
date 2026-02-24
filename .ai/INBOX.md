@@ -20,6 +20,7 @@ Triage weekly or at phase boundaries.
 - [ ] MCP server implementation — expose RAG operations (search, ingest, chat) as MCP tools so AI clients (Claude Desktop, Cursor, etc.) can interact directly
 - [ ] Embeddable chat widget — `<script>` tag that injects iframe chat bubble (Intercom-style) for tenant portals / external sites. Key decisions: auth model (API key vs anonymous Supabase sessions vs portal JWT), CORS, scope (chat only vs. history + feedback + sources)
 - [ ] Inline citations (Perplexity-style) — ShadCN `inline-citation` component already installed (`components/ai/inline-citation.tsx`). Needs custom Streamdown plugin to parse `[DocName]` bracket refs from LLM output and render as `InlineCitation` badges with hover cards linking to `/documents/{id}#chunk-{chunkId}`. See PLAN.md "Future Enhancements".
+- [ ] **VLM visual extraction** — optional Gemini 2.5 Flash step in ingestion pipeline for pages with images/charts/diagrams. Generates text descriptions that get chunked and embedded alongside regular text. ~$0.03/100 pages. GOOGLE_API_KEY already in ingestion .env. Key decisions: how Docling detects visual pages, prompt design, whether descriptions become separate chunks or append to page text.
 
 ## Triaged
 
