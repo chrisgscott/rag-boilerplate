@@ -2,9 +2,12 @@ import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from docling.document_converter import DocumentConverter
+from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling.datamodel.base_models import InputFormat
+from docling.datamodel.pipeline_options import PdfPipelineOptions
 from docling_core.types.doc.labels import DocItemLabel
+
+from src.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -15,13 +18,20 @@ _converter: DocumentConverter | None = None
 def get_converter() -> DocumentConverter:
     global _converter
     if _converter is None:
+        format_options = {}
+        if settings.google_api_key:
+            logger.info("VLM enabled — configuring PDF pipeline with page image generation")
+            pdf_options = PdfPipelineOptions(generate_page_images=True)
+            format_options[InputFormat.PDF] = PdfFormatOption(pipeline_options=pdf_options)
+
         _converter = DocumentConverter(
             allowed_formats=[
                 InputFormat.PDF,
                 InputFormat.MD,
                 InputFormat.HTML,
                 InputFormat.DOCX,
-            ]
+            ],
+            format_options=format_options,
         )
     return _converter
 

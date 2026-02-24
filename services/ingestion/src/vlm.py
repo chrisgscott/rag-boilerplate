@@ -45,6 +45,7 @@ def get_visual_pages(doc) -> dict[int, Image.Image]:
         if page and page.image and page.image.pil_image:
             pages[page_no] = page.image.pil_image
 
+    logger.info(f"Found {len(doc.pictures)} pictures on {len(pages)} pages: {sorted(pages.keys())}")
     return pages
 
 
@@ -62,19 +63,28 @@ async def describe_visual_pages(
 
     async def describe_page(page_no: int, image: Image.Image) -> tuple[int, str | None]:
         async with semaphore:
-            try:
-                response = await client.aio.models.generate_content(
-                    model=model,
-                    contents=[VLM_PROMPT, image],
-                )
-                text = response.text.strip()
-                if NO_VISUAL_SENTINEL in text:
-                    logger.info(f"Page {page_no}: no meaningful visual content")
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    response = await client.aio.models.generate_content(
+                        model=model,
+                        contents=[VLM_PROMPT, image],
+                    )
+                    text = response.text.strip()
+                    if NO_VISUAL_SENTINEL in text:
+                        logger.info(f"Page {page_no}: no meaningful visual content")
+                        return page_no, None
+                    return page_no, text
+                except Exception as e:
+                    error_str = str(e)
+                    if "429" in error_str and attempt < max_retries - 1:
+                        wait = (attempt + 1) * 15  # 15s, 30s, 45s
+                        logger.info(f"Page {page_no}: rate limited, retrying in {wait}s (attempt {attempt + 1}/{max_retries})")
+                        await asyncio.sleep(wait)
+                        continue
+                    logger.warning(f"VLM failed for page {page_no}: {e}")
                     return page_no, None
-                return page_no, text
-            except Exception as e:
-                logger.warning(f"VLM failed for page {page_no}: {e}")
-                return page_no, None
+            return page_no, None
 
     tasks = [describe_page(page_no, img) for page_no, img in pages.items()]
     results = await asyncio.gather(*tasks)

@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     # VLM (optional — enables visual extraction when google_api_key is set)
     google_api_key: str | None = None
     vlm_model: str = "gemini-2.5-flash"
-    vlm_concurrency: int = 10
+    vlm_concurrency: int = 5
 
     model_config = {"env_file": ".env"}
 
