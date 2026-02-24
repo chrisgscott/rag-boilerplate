@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { embedQuery } from "./embedder";
+import { isRerankEnabled, rerankResults } from "./reranker";
 
 // --- Types ---
 
@@ -40,6 +41,11 @@ export async function hybridSearch(
   supabase: SupabaseClient,
   params: SearchParams
 ): Promise<SearchResponse> {
+  const finalCount = params.matchCount ?? 5;
+  const useRerank = isRerankEnabled();
+  // Over-fetch candidates when reranking (4x) so the cross-encoder has more to work with
+  const candidateCount = useRerank ? finalCount * 4 : finalCount;
+
   // 1. Embed the query
   const { embedding, tokenCount } = await embedQuery(params.query);
 
@@ -52,7 +58,7 @@ export async function hybridSearch(
   const { data, error } = await supabase.rpc("hybrid_search", {
     query_text: params.query,
     query_embedding: embedding,
-    match_count: params.matchCount ?? 5,
+    match_count: candidateCount,
     full_text_weight: params.fullTextWeight ?? 1.0,
     semantic_weight: params.semanticWeight ?? 1.0,
     filter_document_ids: filterDocumentIds,
@@ -74,7 +80,7 @@ export async function hybridSearch(
   }
 
   // 5. Map results from snake_case to camelCase
-  const results: SearchResult[] = (data ?? []).map((row: any) => ({
+  let results: SearchResult[] = (data ?? []).map((row: any) => ({
     chunkId: row.chunk_id,
     chunkIndex: row.chunk_index,
     documentId: row.document_id,
@@ -86,7 +92,12 @@ export async function hybridSearch(
     rrfScore: row.rrf_score,
   }));
 
-  // 6. Log document access (fire-and-forget)
+  // 6. Rerank with Cohere cross-encoder (if enabled)
+  if (useRerank && results.length > 0) {
+    results = await rerankResults(params.query, results, finalCount);
+  }
+
+  // 7. Log document access (fire-and-forget)
   logDocumentAccess(
     supabase,
     results,

@@ -1,12 +1,12 @@
 # Project Plan — RAG Boilerplate
 
 ## Current Status
-- **Phase:** Phase 6 COMPLETE + VLM + Page Image Gallery in Chat
-- **Progress:** Phases 1–6 complete, VLM working with GPT-4o-mini, page image gallery + lightbox with prev/next nav in chat, Visuals tab on doc detail
-- **Branch:** `main` (up to date with origin, 17 total commits)
+- **Phase:** Phase 6 COMPLETE + VLM + Eval + Reranking
+- **Progress:** Phases 1–6 complete, VLM, eval run, BM25 fix (AND→OR), Cohere reranking implemented
+- **Branch:** `main` (needs commit + push)
 - **Repo:** `https://github.com/chrisgscott/rag-boilerplate.git`
-- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 25 migrations applied
-- **Tests:** 70 TS + 46 Python passing, clean build
+- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 26 migrations applied
+- **Tests:** 72 TS + 46 Python passing, clean build
 - **Tailwind:** v4.2.0
 
 ### What's Done (Phases 1-6) — COMPLETE
@@ -19,17 +19,17 @@
 - Phase 6: PropTech Demo & Polish (12 commits)
 
 ## Recent Changes (This Session)
-- **Lightbox prev/next navigation:** Arrows portaled outside DialogContent via DialogPortal, positioned at dialog edges using a centered wrapper wider than the dialog (`max-w-[calc(48rem+5rem)]`). "N of M" counter in header.
-- **Skeleton loading fix:** Skeleton now stays until `onLoad` fires on `<img>` (not just until signed URL arrives). Uses `imageLoaded` state + `hidden` class pattern. Height set to `h-80` (320px).
-- **Unused imports cleaned:** Removed `XIcon` and `ImageIcon` from chat-interface.tsx.
-- **All changes pushed** to origin (`09cae2c`).
+- **Eval run:** First eval on PropTech Demo test set — P@k 0.93, R@k 0.93, MRR 1.00, F 4.0, R 4.6, C 3.9
+- **BM25 AND→OR fix:** `websearch_to_tsquery` ANDs all terms, returning zero results for natural language questions. Migration 00026 switches to OR-based tsquery (`plainto_tsquery` with `&` replaced by `|`). Recall improved 0.93→1.00.
+- **Cohere reranking:** Added `cohere-ai` SDK, `lib/rag/reranker.ts`, wired into `search.ts`. When `COHERE_API_KEY` is set, over-fetches 4x candidates from hybrid_search, reranks with `rerank-v3.5`, returns top N. Opt-in via env var.
+- **Eval config cleanup:** `similarityThreshold: 0.7` → `0` in eval config (it was never applied, now documented as intentional).
+- **Tests:** 70→72 TS tests (+2 reranking tests in search.test.ts).
 
 ## Next Steps
-1. **Run worker** to reprocess 4 PDFs with org-prefixed storage paths
-2. **Verify Visuals tab** — should work after reprocessing (RLS was the blocker)
-3. **Verify chat thumbnails + gallery + lightbox nav** — test with a new chat question
-4. **Run eval** — verify retrieval scores with VLM-enriched chunks
-5. **Deploy to Render** — add `VLM_ENABLED=true` env var, test end-to-end
+1. **Run eval with reranking** — user is running now with `COHERE_API_KEY` set
+2. **Commit + push** all changes (BM25 fix, reranking, eval config)
+3. **Deploy to Render** — add `VLM_ENABLED=true`, `COHERE_API_KEY` env vars, test end-to-end
+4. **Prompt tuning** — LLM hedges on parking/pool questions despite having context (system prompt "if context doesn't contain enough" is too cautious)
 
 ## Key Decisions
 - No `src/` directory — root-level app/, components/, lib/
@@ -49,9 +49,19 @@
 - **useSignedUrl hook** — lazy client-side signed URL generation with stale reset, reused across SourceThumbnail and PageImageCard
 - **Skeleton loading states** — prevents layout shift in Dialog lightbox and thumbnail cards
 - **Lightbox prev/next** — portaled arrows outside DialogContent, centered wrapper pattern for edge positioning
+- **BM25 OR logic** — `websearch_to_tsquery` ANDs all terms (kills natural language queries); switched to OR via `replace(plainto_tsquery(...)::text, ' & ', ' | ')::tsquery`
+- **Cohere reranking** — `cohere-ai` SDK, `rerank-v3.5` model, opt-in via `COHERE_API_KEY` env var; over-fetch 4x candidates from hybrid_search, rerank down to final count
+
+## Eval Results History
+| Run | BM25 | Rerank | P@k | R@k | MRR | F | R | C |
+|-----|------|--------|-----|-----|-----|---|---|---|
+| 1 | AND | No | 0.93 | 0.93 | 1.00 | 4.0 | 4.6 | 3.9 |
+| 2 | OR | No | 0.69 | 1.00 | 1.00 | 4.3 | 4.6 | 4.0 |
+| 3 | OR | Yes | TBD | TBD | TBD | TBD | TBD | TBD |
 
 ## Future Enhancements
 - **Inline citations (Perplexity-style)** — ShadCN `inline-citation` component installed. Medium-lift — save for post-launch polish.
+- **Prompt tuning** — LLM over-refuses on parking/pool questions. System prompt "if context doesn't contain enough" is too conservative.
 
 ## Open Questions
 - Role-based sidebar visibility (YAGNI'd out of Phase 6)
@@ -62,7 +72,7 @@
 ```bash
 pnpm dev                    # Start Next.js dev server
 pnpm build                  # Build for production
-pnpm vitest run             # Run TypeScript tests (70 tests)
+pnpm vitest run             # Run TypeScript tests (72 tests)
 npx playwright test         # Run Playwright e2e tests (6 tests)
 pnpm db:types               # Regenerate types from schema
 

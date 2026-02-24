@@ -192,7 +192,7 @@ export async function runEval(testSetId: string) {
   const config: EvalConfig = {
     model: getModelId(),
     topK: 5,
-    similarityThreshold: 0.7,
+    similarityThreshold: 0, // Eval retrieves all top-K results without filtering
   };
 
   // Create result record (status: running)

@@ -1,15 +1,23 @@
 import { vi, describe, it, expect, beforeEach, type Mock } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-// Mock the embedder module (must be before importing search)
+// Mock the embedder and reranker modules (must be before importing search)
 vi.mock("@/lib/rag/embedder", () => ({
   embedQuery: vi.fn(),
 }));
 
+vi.mock("@/lib/rag/reranker", () => ({
+  isRerankEnabled: vi.fn().mockReturnValue(false),
+  rerankResults: vi.fn(),
+}));
+
 import { embedQuery } from "@/lib/rag/embedder";
+import { isRerankEnabled, rerankResults } from "@/lib/rag/reranker";
 import { hybridSearch } from "@/lib/rag/search";
 
 const mockEmbedQuery = embedQuery as Mock;
+const mockIsRerankEnabled = isRerankEnabled as Mock;
+const mockRerankResults = rerankResults as Mock;
 
 // --- Test constants ---
 
@@ -356,5 +364,75 @@ describe("hybridSearch", () => {
 
     // RPC should NOT have been called
     expect(rpcMock).not.toHaveBeenCalled();
+  });
+
+  // --- Reranking tests ---
+
+  describe("with reranking enabled", () => {
+    beforeEach(() => {
+      mockIsRerankEnabled.mockReturnValue(true);
+    });
+
+    afterEach(() => {
+      mockIsRerankEnabled.mockReturnValue(false);
+    });
+
+    it("over-fetches candidates (4x) and reranks to final count", async () => {
+      const candidates = Array.from({ length: 20 }, (_, i) => ({
+        ...SAMPLE_RPC_ROW,
+        chunk_id: i + 1,
+        document_id: `doc-${i + 1}`,
+      }));
+      const rerankedSubset = candidates.slice(0, 5).map((row) => ({
+        chunkId: row.chunk_id,
+        chunkIndex: row.chunk_index,
+        documentId: row.document_id,
+        documentName: "Unknown document",
+        content: row.content,
+        metadata: row.metadata,
+        similarity: row.similarity,
+        ftsRank: row.fts_rank,
+        rrfScore: row.rrf_score,
+      }));
+
+      mockRerankResults.mockResolvedValue(rerankedSubset);
+
+      const { client, rpcMock } = mockSupabase({ rpcData: candidates });
+
+      const response = await hybridSearch(client, {
+        query: "parking rules",
+        organizationId: ORG_ID,
+        matchCount: 5,
+      });
+
+      // RPC should be called with 4x candidates
+      expect(rpcMock).toHaveBeenCalledWith(
+        "hybrid_search",
+        expect.objectContaining({ match_count: 20 })
+      );
+
+      // rerankResults should be called with query, all candidates, and final count
+      expect(mockRerankResults).toHaveBeenCalledWith(
+        "parking rules",
+        expect.any(Array),
+        5
+      );
+      expect(mockRerankResults.mock.calls[0][1]).toHaveLength(20);
+
+      // Final results should be the reranked subset
+      expect(response.results).toHaveLength(5);
+    });
+
+    it("skips reranking when RPC returns empty results", async () => {
+      const { client } = mockSupabase({ rpcData: [] });
+
+      const response = await hybridSearch(client, {
+        query: "test",
+        organizationId: ORG_ID,
+      });
+
+      expect(mockRerankResults).not.toHaveBeenCalled();
+      expect(response.results).toEqual([]);
+    });
   });
 });
