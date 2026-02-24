@@ -1,12 +1,12 @@
 # Project Plan — RAG Boilerplate
 
 ## Current Status
-- **Phase:** Phase 6 COMPLETE + bugfix session
-- **Progress:** Phases 1–6 complete on main, ingestion pipeline bugs fixed
-- **Branch:** `main` (2 commits ahead of origin)
+- **Phase:** Phase 6 COMPLETE + VLM visual extraction COMPLETE
+- **Progress:** Phases 1–6 complete, VLM feature implemented (5 commits)
+- **Branch:** `main`
 - **Repo:** `https://github.com/chrisgscott/rag-boilerplate.git`
 - **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 24 migrations applied
-- **Tests:** 70 TS + 27 Python passing, clean build
+- **Tests:** 70 TS + 46 Python passing, clean build
 - **Tailwind:** v4.2.0
 
 ### What's Done (Phases 1-6) — COMPLETE
@@ -19,18 +19,22 @@
 - Phase 6: PropTech Demo & Polish (12 commits)
 
 ## Recent Changes (This Session)
-- **Fix enqueue_ingestion permissions** (migration 00024) — `SECURITY INVOKER` → `SECURITY DEFINER` with explicit org membership check. Root cause: `authenticated` role has no USAGE on `pgmq` schema, so the RPC silently failed. Documents uploaded but never queued.
-- **Fix chunker infinite recursion** — `_split_segment` ↔ `_merge_segments` mutual recursion had no base case for single oversized tokens. Added hard character split fallback.
-- **Fix worker retry loop** — `conn.rollback()` after failure undid `pgmq.read` visibility timeout (same transaction). Added `conn.commit()` after read to persist the lock. Messages now properly increment `read_ct` on retry.
-- **Raise upload body size limit** — Next.js 16 requires `experimental.serverActions.bodySizeLimit` (50MB) AND `experimental.proxyClientMaxBodySize` (50MB). Two separate limits.
-- **VLM research completed** — Gemini 2.5 Flash selected for optional visual extraction step ($0.03/100 pages). GOOGLE_API_KEY added to ingestion `.env`. Feature parked in INBOX.md for next session.
+- **VLM visual extraction implemented** (5 commits) — Gemini 2.5 Flash step in ingestion pipeline:
+  - `src/vlm.py` — `get_visual_pages`, `describe_visual_pages` (concurrent via asyncio.gather), `upload_page_images` (WebP to Supabase Storage), `enrich_sections`
+  - Parser tracks page numbers per section (`pages: set[int]` on Section dataclass)
+  - Chunks carry metadata (`metadata: dict` on Chunk dataclass, propagated through worker)
+  - `process_message` is now async for VLM calls
+  - `ParseResult.docling_doc` avoids double-parsing
+  - Auto-detect: runs when `GOOGLE_API_KEY` is set and document has pictures
+  - Page images stored at `page-images/{doc_id}/page-{n}.webp` for future chat display
+  - 14 new VLM tests + 2 worker integration tests + 2 parser tests + 1 chunker test
 
 ## Next Steps
-1. **Plan & implement VLM visual extraction** — Gemini 2.5 Flash step in ingestion pipeline for pages with images/charts/diagrams. GOOGLE_API_KEY already configured.
-2. **Re-seed demo data** — delete existing demo via /admin, re-seed
-3. **Run eval** — verify retrieval scores
-4. **Deploy to Render** — add env vars, test end-to-end
-5. **Test demo flow** — chat with PropTech assistant, verify sources
+1. **Re-seed demo data** — delete existing demo via /admin, re-seed with VLM-enriched processing
+2. **Run eval** — verify retrieval scores
+3. **Deploy to Render** — add env vars (including GOOGLE_API_KEY), test end-to-end
+4. **Test demo flow** — chat with PropTech assistant, verify sources + visual content
+5. **Display page images in chat sources** (Level 2) — frontend-only change when `page_image_paths` exists in chunk metadata
 
 ## Key Decisions
 - No `src/` directory — root-level app/, components/, lib/
@@ -48,7 +52,7 @@
 
 ## Future Enhancements
 - **Inline citations (Perplexity-style)** — ShadCN `inline-citation` component installed. Medium-lift — save for post-launch polish.
-- **VLM visual extraction** — Gemini 2.5 Flash for document pages with images/charts/diagrams. See `.ai/INBOX.md`.
+- **Page images in chat sources (Level 2)** — Display source page images when `page_image_paths` exists in chunk metadata. Frontend-only change.
 
 ## Open Questions
 - Role-based sidebar visibility (YAGNI'd out of Phase 6)
@@ -64,5 +68,5 @@ npx playwright test         # Run Playwright e2e tests (6 tests)
 pnpm db:types               # Regenerate types from schema
 
 # Python service (from services/ingestion/)
-source .venv/bin/activate && pytest -v  # Run Python tests (27 tests)
+source .venv/bin/activate && pytest -v  # Run Python tests (46 tests)
 ```
