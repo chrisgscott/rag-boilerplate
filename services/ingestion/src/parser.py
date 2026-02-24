@@ -40,6 +40,7 @@ class ParseResult:
     text: str
     sections: list[Section]
     page_count: int = 1
+    docling_doc: object = None  # Raw Docling document for VLM extraction
 
 
 SUPPORTED_MIME_TYPES = {
@@ -72,7 +73,7 @@ def parse_document(file_path: Path, mime_type: str) -> ParseResult:
     # Get page count
     page_count = len(doc.pages) if hasattr(doc, "pages") and doc.pages else 1
 
-    return ParseResult(text=text, sections=sections, page_count=page_count)
+    return ParseResult(text=text, sections=sections, page_count=page_count, docling_doc=doc)
 
 
 def _extract_sections(doc) -> list[Section]:

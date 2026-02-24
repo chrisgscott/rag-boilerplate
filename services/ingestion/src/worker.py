@@ -9,6 +9,7 @@ from src.config import settings
 from src.parser import parse_document, ParseResult
 from src.chunker import chunk_text, ChunkOptions, Chunk
 from src.embedder import embed_texts
+from src.vlm import get_visual_pages, describe_visual_pages, upload_page_images, enrich_sections
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +98,7 @@ def upsert_chunks(
         supabase.table("document_chunks").insert(batch).execute()
 
 
-def process_message(message: dict) -> None:
+async def process_message(message: dict) -> None:
     """Process a single ingestion job message."""
     document_id = message["document_id"]
     organization_id = message["organization_id"]
@@ -125,6 +126,17 @@ def process_message(message: dict) -> None:
         try:
             # Parse with Docling
             parse_result = parse_document(tmp_path, doc["mime_type"])
+
+            # VLM visual extraction (optional — runs when GOOGLE_API_KEY is set)
+            if settings.google_api_key and parse_result.docling_doc:
+                visual_pages = get_visual_pages(parse_result.docling_doc)
+                if visual_pages:
+                    descriptions = await describe_visual_pages(visual_pages)
+                    page_images = upload_page_images(visual_pages, document_id, supabase)
+                    enrich_sections(parse_result.sections, descriptions, page_images)
+                    logger.info(
+                        f"VLM enriched {len(descriptions)} pages for document {document_id}"
+                    )
 
             # Chunk sections
             chunks = chunk_sections(parse_result, doc["name"])
@@ -212,7 +224,7 @@ async def process_next_job() -> bool:
                 return True
 
             try:
-                process_message(message)
+                await process_message(message)
                 # Archive on success
                 cur.execute(
                     "SELECT pgmq.archive(%s, %s)",
