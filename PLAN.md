@@ -2,8 +2,8 @@
 
 ## Current Status
 - **Phase:** Phase 6 COMPLETE + VLM + Page Image Gallery in Chat
-- **Progress:** Phases 1–6 complete, VLM working with GPT-4o-mini, page image gallery + lightbox in chat, Visuals tab on doc detail
-- **Branch:** `main` (15 commits ahead of origin)
+- **Progress:** Phases 1–6 complete, VLM working with GPT-4o-mini, page image gallery + lightbox with prev/next nav in chat, Visuals tab on doc detail
+- **Branch:** `main` (up to date with origin, 17 total commits)
 - **Repo:** `https://github.com/chrisgscott/rag-boilerplate.git`
 - **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 25 migrations applied
 - **Tests:** 70 TS + 46 Python passing, clean build
@@ -19,20 +19,17 @@
 - Phase 6: PropTech Demo & Polish (12 commits)
 
 ## Recent Changes (This Session)
-- **Storage path fix for RLS:** Changed page image upload path from `page-images/{doc_id}/...` to `{org_id}/page-images/{doc_id}/...` — the existing RLS policy on `storage.objects` casts `foldername(name)[1]` to UUID, so the first folder must be the org ID. Error was `22P02` (invalid text representation).
-- **Worker tests updated:** Replaced `mock_settings.google_api_key` with `mock_settings.vlm_enabled` across all test_worker.py tests (leftovers from Gemini→OpenAI switch).
-- **Page image gallery in chat:** Horizontal row of clickable thumbnail cards below each assistant message. Click opens a Dialog lightbox with full-size image. Uses `useSignedUrl` hook for lazy signed URL generation. Skeleton placeholders prevent layout shift.
-- **pageImagePaths saved to DB:** `route.ts` onFinish now includes `pageImagePaths` in the saved `messages.sources` column, so historical messages also show thumbnails.
-- **Source thumbnails in dropdown:** Sources dropdown shows small image preview replacing BookIcon when source has page images.
-- **Documents requeued for reprocessing:** All 4 PDFs queued with new org-prefixed storage paths. Worker needs to run to complete.
+- **Lightbox prev/next navigation:** Arrows portaled outside DialogContent via DialogPortal, positioned at dialog edges using a centered wrapper wider than the dialog (`max-w-[calc(48rem+5rem)]`). "N of M" counter in header.
+- **Skeleton loading fix:** Skeleton now stays until `onLoad` fires on `<img>` (not just until signed URL arrives). Uses `imageLoaded` state + `hidden` class pattern. Height set to `h-80` (320px).
+- **Unused imports cleaned:** Removed `XIcon` and `ImageIcon` from chat-interface.tsx.
+- **All changes pushed** to origin (`09cae2c`).
 
 ## Next Steps
 1. **Run worker** to reprocess 4 PDFs with org-prefixed storage paths
 2. **Verify Visuals tab** — should work after reprocessing (RLS was the blocker)
-3. **Verify chat thumbnails + gallery** — test with a new chat question
+3. **Verify chat thumbnails + gallery + lightbox nav** — test with a new chat question
 4. **Run eval** — verify retrieval scores with VLM-enriched chunks
 5. **Deploy to Render** — add `VLM_ENABLED=true` env var, test end-to-end
-6. **Clean up unused imports** — `XIcon` imported but unused in chat-interface.tsx
 
 ## Key Decisions
 - No `src/` directory — root-level app/, components/, lib/
@@ -51,6 +48,7 @@
 - **Dialog lightbox for page images** — uses existing shadcn Dialog component, no new dependencies
 - **useSignedUrl hook** — lazy client-side signed URL generation with stale reset, reused across SourceThumbnail and PageImageCard
 - **Skeleton loading states** — prevents layout shift in Dialog lightbox and thumbnail cards
+- **Lightbox prev/next** — portaled arrows outside DialogContent, centered wrapper pattern for edge positioning
 
 ## Future Enhancements
 - **Inline citations (Perplexity-style)** — ShadCN `inline-citation` component installed. Medium-lift — save for post-launch polish.
