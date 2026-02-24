@@ -1,11 +1,11 @@
 # Project Plan — RAG Boilerplate
 
 ## Current Status
-- **Phase:** Phase 6 COMPLETE + VLM visual extraction COMPLETE
-- **Progress:** Phases 1–6 complete, VLM feature implemented (5 commits)
+- **Phase:** Phase 6 COMPLETE + VLM visual extraction LIVE-TESTED
+- **Progress:** Phases 1–6 complete, VLM feature implemented and tested with real PDFs
 - **Branch:** `main`
 - **Repo:** `https://github.com/chrisgscott/rag-boilerplate.git`
-- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 24 migrations applied
+- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 25 migrations applied
 - **Tests:** 70 TS + 46 Python passing, clean build
 - **Tailwind:** v4.2.0
 
@@ -19,22 +19,20 @@
 - Phase 6: PropTech Demo & Polish (12 commits)
 
 ## Recent Changes (This Session)
-- **VLM visual extraction implemented** (5 commits) — Gemini 2.5 Flash step in ingestion pipeline:
-  - `src/vlm.py` — `get_visual_pages`, `describe_visual_pages` (concurrent via asyncio.gather), `upload_page_images` (WebP to Supabase Storage), `enrich_sections`
-  - Parser tracks page numbers per section (`pages: set[int]` on Section dataclass)
-  - Chunks carry metadata (`metadata: dict` on Chunk dataclass, propagated through worker)
-  - `process_message` is now async for VLM calls
-  - `ParseResult.docling_doc` avoids double-parsing
-  - Auto-detect: runs when `GOOGLE_API_KEY` is set and document has pictures
-  - Page images stored at `page-images/{doc_id}/page-{n}.webp` for future chat display
-  - 14 new VLM tests + 2 worker integration tests + 2 parser tests + 1 chunker test
+- **VLM live-tested and debugged** (3 fix commits on top of 5 implementation commits):
+  - **Fix 1:** Docling needs `generate_page_images=True` in `PdfPipelineOptions` — page images are off by default. Added conditional config in `parser.py:get_converter()` when `GOOGLE_API_KEY` is set.
+  - **Fix 2:** Gemini free tier rate limits (5 RPM / 20 RPD). Added retry with backoff (15s/30s/45s) for 429 errors. Reduced default `vlm_concurrency` from 10 to 5.
+  - **Fix 3:** Supabase Storage bucket didn't allow `image/webp`. Migration 00025 adds it. Upload uses `upsert: "true"` for reprocessing.
+  - **Prompt revision:** Rewrote VLM prompt to focus on meaning over appearance — 3x more token-efficient (3,086 vs 8,895 tokens for same doc), better search relevance.
+  - **Live test results:** Strategic_Design_System_For_Momentum.pdf (13 pages, 28 pictures) → 12 pages with images detected, VLM descriptions enriching chunks with methodology names, relationships, and semantic content.
 
 ## Next Steps
-1. **Re-seed demo data** — delete existing demo via /admin, re-seed with VLM-enriched processing
-2. **Run eval** — verify retrieval scores
-3. **Deploy to Render** — add env vars (including GOOGLE_API_KEY), test end-to-end
-4. **Test demo flow** — chat with PropTech assistant, verify sources + visual content
-5. **Display page images in chat sources** (Level 2) — frontend-only change when `page_image_paths` exists in chunk metadata
+1. **Upgrade Gemini API key** to paid tier (free tier: 5 RPM / 20 RPD is too limiting for multi-doc processing)
+2. **Reprocess all 4 PDFs** once rate limits allow (or with paid key)
+3. **Run eval** — verify retrieval scores with VLM-enriched chunks
+4. **Deploy to Render** — add env vars (including GOOGLE_API_KEY), test end-to-end
+5. **Test demo flow** — chat with assistant, verify sources + visual content
+6. **Display page images in chat sources** (Level 2) — frontend-only change when `page_image_paths` exists in chunk metadata
 
 ## Key Decisions
 - No `src/` directory — root-level app/, components/, lib/
@@ -48,7 +46,9 @@
 - **Phase 6: Per-org system prompt** — `organizations.system_prompt` column in DB
 - **Service role client** for admin operations — `lib/supabase/admin.ts` bypasses RLS
 - **Gemini 2.5 Flash** for VLM visual extraction — best quality/cost balance (~$0.03/100 pages)
-- **enqueue_ingestion as SECURITY DEFINER** — authenticated role lacks pgmq schema access; function does explicit org membership check instead of relying on RLS
+- **enqueue_ingestion as SECURITY DEFINER** — authenticated role lacks pgmq schema access
+- **Concise VLM prompt** — semantic focus (meaning > appearance), 2-4 sentences per visual, ~3x fewer tokens
+- **Docling generate_page_images=True** — required for VLM, conditionally enabled when GOOGLE_API_KEY set
 
 ## Future Enhancements
 - **Inline citations (Perplexity-style)** — ShadCN `inline-citation` component installed. Medium-lift — save for post-launch polish.
