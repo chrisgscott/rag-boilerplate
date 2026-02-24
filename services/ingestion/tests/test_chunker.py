@@ -69,3 +69,8 @@ class TestChunkText:
         chunks = chunk_text("Hello world foo bar", ChunkOptions(max_tokens=100, overlap=0.0))
         for chunk in chunks:
             assert chunk.token_count == estimate_tokens(chunk.content)
+
+    def test_chunk_has_metadata_field(self):
+        chunks = chunk_text("Hello world", ChunkOptions(max_tokens=100, overlap=0.0))
+        assert hasattr(chunks[0], "metadata")
+        assert isinstance(chunks[0].metadata, dict)

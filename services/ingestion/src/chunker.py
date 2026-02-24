@@ -1,6 +1,6 @@
 import math
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -8,6 +8,7 @@ class Chunk:
     content: str
     index: int
     token_count: int
+    metadata: dict = field(default_factory=dict)
 
 
 @dataclass

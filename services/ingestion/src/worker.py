@@ -54,6 +54,13 @@ def chunk_sections(parse_result: ParseResult, doc_name: str) -> list[Chunk]:
                 section_header=" > ".join(section.headers) if section.headers else None,
             ),
         )
+        # Propagate section-level metadata to chunks
+        section_metadata: dict = {"document_name": doc_name}
+        if hasattr(section, "page_image_paths") and section.page_image_paths:
+            section_metadata["page_image_paths"] = section.page_image_paths
+        for chunk in section_chunks:
+            chunk.metadata = section_metadata
+
         all_chunks.extend(section_chunks)
 
     # Re-index sequentially across all sections
@@ -68,7 +75,6 @@ def upsert_chunks(
     embeddings: list[list[float]],
     document_id: str,
     organization_id: str,
-    doc_name: str,
 ):
     supabase = _get_supabase()
     batch_size = 50
@@ -81,7 +87,7 @@ def upsert_chunks(
             "embedding": json.dumps(embeddings[i]),
             "chunk_index": chunk.index,
             "token_count": chunk.token_count,
-            "metadata": {"document_name": doc_name},
+            "metadata": chunk.metadata,
         }
         for i, chunk in enumerate(chunks)
     ]
@@ -134,7 +140,6 @@ def process_message(message: dict) -> None:
                 embedding_result.embeddings,
                 document_id,
                 organization_id,
-                doc["name"],
             )
 
             # Success
