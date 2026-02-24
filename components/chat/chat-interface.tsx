@@ -6,7 +6,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import type { UIMessage } from "ai";
 import { toast } from "sonner";
-import { BookIcon } from "lucide-react";
+import { BookIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -17,6 +17,7 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogPortal,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -156,7 +157,8 @@ function PageImageCard({
 
 /** Horizontal gallery of page image thumbnails with Dialog lightbox. */
 function PageImageGallery({ images }: { images: PageImageInfo[] }) {
-  const [selectedImage, setSelectedImage] = useState<PageImageInfo | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const selectedImage = selectedIndex !== null ? images[selectedIndex] : null;
   const selectedUrl = useSignedUrl(selectedImage?.storagePath);
   const [imageLoaded, setImageLoaded] = useState(false);
 
@@ -167,19 +169,22 @@ function PageImageGallery({ images }: { images: PageImageInfo[] }) {
 
   if (images.length === 0) return null;
 
+  const hasPrev = selectedIndex !== null && selectedIndex > 0;
+  const hasNext = selectedIndex !== null && selectedIndex < images.length - 1;
+
   return (
     <>
       <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-        {images.map((img) => (
+        {images.map((img, i) => (
           <PageImageCard
             key={`${img.storagePath}`}
             image={img}
-            onClick={() => setSelectedImage(img)}
+            onClick={() => setSelectedIndex(i)}
           />
         ))}
       </div>
 
-      <Dialog open={!!selectedImage} onOpenChange={(open) => !open && setSelectedImage(null)}>
+      <Dialog open={selectedIndex !== null} onOpenChange={(open) => !open && setSelectedIndex(null)}>
         <DialogContent className="sm:max-w-3xl p-0 gap-0 overflow-hidden">
           <DialogHeader className="p-4 pb-2">
             <DialogTitle className="text-sm font-medium">
@@ -189,11 +194,16 @@ function PageImageGallery({ images }: { images: PageImageInfo[] }) {
                   — {selectedImage.documentName}
                 </span>
               )}
+              {images.length > 1 && (
+                <span className="ml-2 text-muted-foreground font-normal">
+                  ({(selectedIndex ?? 0) + 1} of {images.length})
+                </span>
+              )}
             </DialogTitle>
           </DialogHeader>
           <div className="px-4 pb-4">
             {!imageLoaded && (
-              <Skeleton className="w-full aspect-[3/4] rounded-md" />
+              <Skeleton className="w-full h-80 rounded-md" />
             )}
             {selectedUrl && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -206,6 +216,32 @@ function PageImageGallery({ images }: { images: PageImageInfo[] }) {
             )}
           </div>
         </DialogContent>
+        {images.length > 1 && (
+          <DialogPortal>
+            <div className="fixed inset-0 z-[51] pointer-events-none flex items-center justify-center">
+              <div className="w-full max-w-[calc(48rem+5rem)] flex items-center justify-between">
+                <button
+                  type="button"
+                  disabled={!hasPrev}
+                  onClick={() => hasPrev && setSelectedIndex(selectedIndex! - 1)}
+                  className="pointer-events-auto rounded-full bg-background p-2 shadow-lg border border-border transition-opacity hover:bg-accent disabled:opacity-0 disabled:pointer-events-none"
+                  aria-label="Previous image"
+                >
+                  <ChevronLeftIcon className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  disabled={!hasNext}
+                  onClick={() => hasNext && setSelectedIndex(selectedIndex! + 1)}
+                  className="pointer-events-auto rounded-full bg-background p-2 shadow-lg border border-border transition-opacity hover:bg-accent disabled:opacity-0 disabled:pointer-events-none"
+                  aria-label="Next image"
+                >
+                  <ChevronRightIcon className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+          </DialogPortal>
+        )}
       </Dialog>
     </>
   );
