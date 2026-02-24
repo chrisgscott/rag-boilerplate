@@ -112,13 +112,14 @@ async def describe_visual_pages(
 def upload_page_images(
     pages: dict[int, Image.Image],
     document_id: str,
+    organization_id: str,
     supabase,
 ) -> dict[int, str]:
     """Upload page images to Supabase Storage as WebP. Returns {page_no: storage_path}."""
     paths: dict[int, str] = {}
 
     for page_no, image in pages.items():
-        storage_path = f"page-images/{document_id}/page-{page_no}.webp"
+        storage_path = f"{organization_id}/page-images/{document_id}/page-{page_no}.webp"
         try:
             buf = io.BytesIO()
             image.save(buf, format="WEBP", quality=80)

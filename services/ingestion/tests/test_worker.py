@@ -12,7 +12,7 @@ class TestProcessMessage:
     @patch("src.worker.embed_texts")
     async def test_orchestrates_full_pipeline(self, mock_embed, mock_parse, mock_supabase, mock_settings):
         # Config — no VLM
-        mock_settings.google_api_key = None
+        mock_settings.vlm_enabled = False
         mock_settings.chunk_max_tokens = 512
         mock_settings.chunk_overlap = 0.15
 
@@ -75,7 +75,7 @@ class TestProcessMessage:
     @patch("src.worker.settings")
     @patch("src.worker._get_supabase")
     async def test_sets_error_status_on_failure(self, mock_supabase, mock_settings):
-        mock_settings.google_api_key = None
+        mock_settings.vlm_enabled = False
         mock_settings.chunk_max_tokens = 512
         mock_settings.chunk_overlap = 0.15
 
@@ -104,7 +104,7 @@ class TestProcessMessage:
     @patch("src.worker._get_supabase")
     @patch("src.worker.parse_document")
     async def test_sets_error_on_empty_chunks(self, mock_parse, mock_supabase, mock_settings):
-        mock_settings.google_api_key = None
+        mock_settings.vlm_enabled = False
         mock_settings.chunk_max_tokens = 512
         mock_settings.chunk_overlap = 0.15
 
@@ -159,7 +159,7 @@ class TestProcessMessageWithVLM:
         mock_enrich,
     ):
         # Config with VLM enabled
-        mock_settings.google_api_key = "test-key"
+        mock_settings.vlm_enabled = True
         mock_settings.chunk_max_tokens = 512
         mock_settings.chunk_overlap = 0.15
 
@@ -212,7 +212,7 @@ class TestProcessMessageWithVLM:
     @patch("src.worker._get_supabase")
     @patch("src.worker.parse_document")
     @patch("src.worker.embed_texts")
-    async def test_skips_vlm_when_no_api_key(
+    async def test_skips_vlm_when_disabled(
         self,
         mock_embed,
         mock_parse,
@@ -220,7 +220,7 @@ class TestProcessMessageWithVLM:
         mock_settings,
         mock_visual_pages,
     ):
-        mock_settings.google_api_key = None
+        mock_settings.vlm_enabled = False
         mock_settings.chunk_max_tokens = 512
         mock_settings.chunk_overlap = 0.15
 

@@ -186,15 +186,20 @@ export async function POST(req: Request) {
           role: "assistant",
           content: text,
           parts: [{ type: "text", text }],
-          sources: relevantResults.map((r) => ({
-            documentId: r.documentId,
-            documentName: r.documentName,
-            chunkId: r.chunkId,
-            chunkIndex: r.chunkIndex,
-            content: r.content,
-            similarity: r.similarity,
-            rrfScore: r.rrfScore,
-          })),
+          sources: relevantResults.map((r) => {
+            const meta = r.metadata as Record<string, unknown> | null;
+            const pip = meta?.page_image_paths as Record<string, string> | undefined;
+            return {
+              documentId: r.documentId,
+              documentName: r.documentName,
+              chunkId: r.chunkId,
+              chunkIndex: r.chunkIndex,
+              content: r.content,
+              similarity: r.similarity,
+              rrfScore: r.rrfScore,
+              ...(pip ? { pageImagePaths: pip } : {}),
+            };
+          }),
           token_count:
             (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0),
           model: modelId,

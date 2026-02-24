@@ -132,7 +132,7 @@ async def process_message(message: dict) -> None:
                 visual_pages = get_visual_pages(parse_result.docling_doc)
                 if visual_pages:
                     descriptions = await describe_visual_pages(visual_pages)
-                    page_images = upload_page_images(visual_pages, document_id, supabase)
+                    page_images = upload_page_images(visual_pages, document_id, organization_id, supabase)
                     enrich_sections(parse_result.sections, descriptions, page_images)
                     logger.info(
                         f"VLM enriched {len(descriptions)} pages for document {document_id}"

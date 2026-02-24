@@ -135,12 +135,12 @@ class TestUploadPageImages:
         mock_supabase.storage.from_.return_value.upload.return_value = None
 
         pages = {3: Image.new("RGB", (100, 100))}
-        result = upload_page_images(pages, "doc-123", mock_supabase)
+        result = upload_page_images(pages, "doc-123", "org-abc", mock_supabase)
 
-        assert "page-images/doc-123/page-3.webp" in result.values()
+        assert "org-abc/page-images/doc-123/page-3.webp" in result.values()
         mock_supabase.storage.from_.assert_called_with("documents")
         call_args = mock_supabase.storage.from_.return_value.upload.call_args
-        assert call_args[0][0] == "page-images/doc-123/page-3.webp"
+        assert call_args[0][0] == "org-abc/page-images/doc-123/page-3.webp"
 
     def test_returns_paths_keyed_by_page(self):
         mock_supabase = MagicMock()
@@ -150,16 +150,16 @@ class TestUploadPageImages:
             1: Image.new("RGB", (100, 100)),
             5: Image.new("RGB", (100, 100)),
         }
-        result = upload_page_images(pages, "doc-456", mock_supabase)
-        assert result[1] == "page-images/doc-456/page-1.webp"
-        assert result[5] == "page-images/doc-456/page-5.webp"
+        result = upload_page_images(pages, "doc-456", "org-abc", mock_supabase)
+        assert result[1] == "org-abc/page-images/doc-456/page-1.webp"
+        assert result[5] == "org-abc/page-images/doc-456/page-5.webp"
 
     def test_skips_failed_uploads(self):
         mock_supabase = MagicMock()
         mock_supabase.storage.from_.return_value.upload.side_effect = Exception("Upload failed")
 
         pages = {3: Image.new("RGB", (100, 100))}
-        result = upload_page_images(pages, "doc-789", mock_supabase)
+        result = upload_page_images(pages, "doc-789", "org-abc", mock_supabase)
         assert result == {}
 
 

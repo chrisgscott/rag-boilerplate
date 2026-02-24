@@ -73,6 +73,5 @@ export default async function DocumentDetailPage({
       pageImages.sort((a, b) => a.pageNumber - b.pageNumber);
     }
   }
-
   return <DocumentDetail document={document} chunks={chunks ?? []} pageImages={pageImages} />;
 }
