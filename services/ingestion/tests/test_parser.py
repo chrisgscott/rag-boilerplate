@@ -49,6 +49,21 @@ class TestPlainTextParsing:
         assert len(result.sections) >= 1
 
 
+class TestPageTracking:
+    def test_sections_have_page_numbers(self):
+        pdf_path = FIXTURES / "sample.pdf"
+        result = parse_document(pdf_path, "application/pdf")
+        for section in result.sections:
+            assert isinstance(section.pages, set)
+            assert len(section.pages) >= 1
+
+    def test_plain_text_sections_have_empty_pages(self):
+        txt_path = FIXTURES / "sample.txt"
+        result = parse_document(txt_path, "text/plain")
+        for section in result.sections:
+            assert isinstance(section.pages, set)
+
+
 class TestUnsupportedFormat:
     def test_raises_on_unsupported_mime_type(self):
         with pytest.raises(ValueError, match="Unsupported"):

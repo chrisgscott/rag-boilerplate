@@ -31,6 +31,8 @@ class Section:
     content: str
     headers: list[str] = field(default_factory=list)
     level: int = 0
+    pages: set[int] = field(default_factory=set)
+    page_image_paths: dict[int, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -79,10 +81,18 @@ def _extract_sections(doc) -> list[Section]:
     header_stack: list[str] = []
     current_content: list[str] = []
     current_level = 0
+    current_pages: set[int] = set()
 
     for item, level in doc.iterate_items():
         label = getattr(item, "label", None)
         text = ""
+
+        # Track page number from provenance
+        prov = getattr(item, "prov", None)
+        if prov and len(prov) > 0:
+            page_no = getattr(prov[0], "page_no", None)
+            if page_no is not None:
+                current_pages.add(page_no)
 
         # Handle tables specially
         if label == DocItemLabel.TABLE:
@@ -97,8 +107,9 @@ def _extract_sections(doc) -> list[Section]:
 
         if label == DocItemLabel.SECTION_HEADER:
             # Flush current section
-            _flush_section(sections, current_content, header_stack, current_level)
+            _flush_section(sections, current_content, header_stack, current_level, current_pages)
             current_content = []
+            current_pages = set()
 
             # Update header stack
             h_level = getattr(item, "level", 1)
@@ -109,8 +120,9 @@ def _extract_sections(doc) -> list[Section]:
             current_level = h_level
 
         elif label == DocItemLabel.TITLE:
-            _flush_section(sections, current_content, header_stack, current_level)
+            _flush_section(sections, current_content, header_stack, current_level, current_pages)
             current_content = []
+            current_pages = set()
             header_stack = [text]
             current_level = 1
 
@@ -118,7 +130,7 @@ def _extract_sections(doc) -> list[Section]:
             current_content.append(text)
 
     # Flush final section
-    _flush_section(sections, current_content, header_stack, current_level)
+    _flush_section(sections, current_content, header_stack, current_level, current_pages)
 
     # If no sections found, return entire text as one section
     if not sections:
@@ -134,11 +146,17 @@ def _flush_section(
     content_lines: list[str],
     headers: list[str],
     level: int,
+    pages: set[int] | None = None,
 ):
     content = "\n\n".join(line for line in content_lines if line.strip())
     if content:
         clean_headers = [h for h in headers if h]
-        sections.append(Section(content=content, headers=list(clean_headers), level=level))
+        sections.append(Section(
+            content=content,
+            headers=list(clean_headers),
+            level=level,
+            pages=pages or set(),
+        ))
 
 
 def _parse_plain_text(file_path: Path) -> ParseResult:
