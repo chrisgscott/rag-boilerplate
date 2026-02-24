@@ -174,6 +174,10 @@ async def process_next_job() -> bool:
             if not row:
                 return False
 
+            # Commit the read so the visibility timeout persists even if
+            # processing fails — prevents infinite immediate retry loops.
+            conn.commit()
+
             # pgmq.read returns (msg_id, read_ct, enqueued_at, vt, message)
             msg_id = row[0]
             read_ct = row[1]

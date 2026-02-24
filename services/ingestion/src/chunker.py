@@ -73,7 +73,12 @@ def _split_segment(text: str, max_tokens: int) -> list[str]:
         return _merge_segments(sentences, max_tokens)
 
     words = text.split()
-    return _merge_segments(words, max_tokens)
+    if len(words) > 1:
+        return _merge_segments(words, max_tokens)
+
+    # Base case: single token too large to split further — hard character split
+    char_limit = max_tokens * 4  # ~4 chars per token
+    return [text[i : i + char_limit] for i in range(0, len(text), char_limit)]
 
 
 def _apply_overlap(chunks: list[str], overlap_ratio: float, max_tokens: int) -> list[str]:
