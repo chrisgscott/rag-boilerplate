@@ -1,13 +1,13 @@
 # Project Plan — RAG Boilerplate
 
 ## Current Status
-- **Phase:** REST API Layer — COMPLETE
-- **Progress:** Phases 1–7 complete. All features implemented.
-- **Branch:** `main`
+- **Phase:** All core phases complete. Docs & polish in progress.
+- **Progress:** Phases 1–7 complete. Pushed to origin. README and API guide written.
+- **Branch:** `main` (up to date with origin)
 - **Repo:** `https://github.com/chrisgscott/rag-boilerplate.git`
 - **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 31 migrations applied
 - **Tests:** 120 TS + 46 Python passing, clean build
-- **Tailwind:** v4.2.0
+- **Docs:** README.md (setup guide), docs/api-guide.md (REST API reference)
 
 ### What's Done (Phases 1-7) — ALL COMPLETE
 - Phase 1: Next.js 16 + Supabase auth + dashboard shell
@@ -15,82 +15,49 @@
 - Phase 2.5: Python/FastAPI ingestion (Docling + pgmq)
 - Phase 3: Hybrid search (vector + BM25 + RRF) + access logging
 - Phase 4: Chat interface (streaming, conversation history, source citations)
-- Phase 5: Evaluation & cost tracking
-- Phase 6: PropTech Demo & Polish (12 commits)
-- Phase 7: REST API Layer (9 tasks, all complete)
-
-## REST API Implementation — COMPLETE
-| Task | Status | Description |
-|------|--------|-------------|
-| 1 | DONE | `api_keys` table migration (00027) |
-| 2 | DONE | API auth helper (`lib/api/auth.ts`) + response utilities (`lib/api/response.ts`) |
-| 3 | DONE | Documents list + upload (`app/api/v1/documents/route.ts`) |
-| 4 | DONE | Document detail + delete (`app/api/v1/documents/[id]/route.ts`) |
-| 5 | DONE | Conversations list, detail, delete |
-| 6 | DONE | Feedback endpoint |
-| 7 | DONE | Chat API with SSE + AI SDK dual streaming |
-| 8 | DONE | Dashboard API key management UI (settings page) |
-| 9 | DONE | Build verification & cleanup |
-
-### REST API Routes
-- `GET /api/v1/documents` — List documents
-- `POST /api/v1/documents` — Upload document (multipart/form-data)
-- `GET /api/v1/documents/:id` — Document detail with chunk count
-- `DELETE /api/v1/documents/:id` — Delete document + storage
-- `GET /api/v1/conversations` — List conversations
-- `GET /api/v1/conversations/:id` — Conversation detail with messages
-- `DELETE /api/v1/conversations/:id` — Delete conversation
-- `POST /api/v1/conversations/:id/feedback` — Submit message feedback
-- `POST /api/v1/chat` — Chat with RAG (SSE, AI SDK, or non-streaming)
-
-### REST API Migrations Applied
-- 00027: `api_keys` table with RLS
-- 00028: `documents.uploaded_by` DROP NOT NULL (API key auth has no user)
-- 00029: `enqueue_ingestion` allow service_role calls
-- 00030: `conversations.user_id` DROP NOT NULL
-- 00031: `message_feedback.user_id` DROP NOT NULL
-
-## Recent Changes (This Session)
-- **REST API Tasks 2-9 complete** — all endpoints implemented, tested, reviewed
-- **E2E API testing** — all 9 endpoints tested manually with curl using a real API key
-- **Bug fix: proxy redirect** — `/api/v1/` routes were 307ing to `/auth/login` (added exclusion in `lib/supabase/proxy.ts`)
-- **Bug fix: UIMessage format** — AI SDK `convertToModelMessages` requires `parts` array, not plain `content` (added conversion in `app/api/v1/chat/route.ts`)
-- **API guide** — comprehensive docs at `docs/api-guide.md` with curl examples for all endpoints
-- **13 commits** ahead of origin/main
+- Phase 5: Evaluation & cost tracking + Cohere reranking
+- Phase 6: PropTech Demo & Polish + VLM visual extraction
+- Phase 7: REST API Layer (9 tasks, all complete, E2E tested)
+- Docs: README setup guide, API reference, "Building On Top of This" guide
 
 ## Next Steps
-1. **Push to origin** — 13 commits ready
-2. **Deploy to Render** — add `VLM_ENABLED=true`, `COHERE_API_KEY` env vars, test end-to-end
-3. **Inline citations** — Perplexity-style bracket ref parsing (deferred)
+1. **Deploy to Render** — add `VLM_ENABLED=true`, `COHERE_API_KEY` env vars, test end-to-end
+2. Pick next feature from inbox (see `.ai/INBOX.md`)
+
+## Backlog (from .ai/INBOX.md)
+
+**High-value additions:**
+- Embeddable chat widget (`<script>` tag, Intercom-style — REST API backend is ready)
+- Inline citations (Perplexity-style — ShadCN component already installed)
+- Semantic caching in pgvector (60-90% cost reduction)
+- Contextual chunking (Anthropic method — 35-67% failure reduction)
+
+**Nice to have:**
+- CLI tools (`rag ingest`, `rag eval`, `rag cost-report`)
+- Smart model routing (cheap for simple, powerful for complex)
+- Document versioning and diff tracking
+- Agentic RAG with multiple retrieval tools
+- Multi-query / HyDE retrieval
+- Togglable web search (blend outside context with document-grounded answers on demand)
+- MCP server (expose RAG as tools for Claude Desktop, Cursor, etc.)
+
+**Verticals:** LegalTech, InsurTech, Course/educational content
 
 ## Key Decisions
 - No `src/` directory — root-level app/, components/, lib/
 - **Solo developer workflow** — merge locally, no PRs needed
 - **Tailwind v4** — CSS-based config, @theme inline, tw-animate-css
-- **ShadCN sidebar-07** — collapsible icon sidebar pattern
 - **3-service architecture** — Next.js (Render) + Python ingestion (Render) + Supabase (Cloud)
 - **AI SDK v6** — UIMessage stream protocol, DefaultChatTransport
-- **Phase 5: Custom eval** (not Langfuse) — keeps boilerplate self-contained
-- **Phase 6: Demo org approach** — all demo content under one org, cascade delete
-- **Phase 6: Per-org system prompt** — `organizations.system_prompt` column in DB
+- **Custom eval** (not Langfuse) — keeps boilerplate self-contained
+- **Per-org system prompt** — `organizations.system_prompt` column in DB
 - **Service role client** for admin operations — `lib/supabase/admin.ts` bypasses RLS
-- **OpenAI GPT-4o-mini** for VLM visual extraction — replaces Gemini (rate limit issues), uses existing API key
-- **VLM_ENABLED flag** — opt-in via env var, replaces implicit google_api_key check
-- **Org-prefixed storage paths** — `{org_id}/page-images/{doc_id}/page-N.webp` to match RLS policy that casts first folder to UUID
-- **Dialog lightbox for page images** — uses existing shadcn Dialog component, no new dependencies
-- **useSignedUrl hook** — lazy client-side signed URL generation with stale reset, reused across SourceThumbnail and PageImageCard
-- **Skeleton loading states** — prevents layout shift in Dialog lightbox and thumbnail cards
-- **Lightbox prev/next** — portaled arrows outside DialogContent, centered wrapper pattern for edge positioning
-- **BM25 OR logic** — `websearch_to_tsquery` ANDs all terms (kills natural language queries); switched to OR via `replace(plainto_tsquery(...)::text, ' & ', ' | ')::tsquery`
-- **Cohere reranking** — `cohere-ai` SDK, `rerank-v3.5` model, opt-in via `COHERE_API_KEY` env var; over-fetch 4x candidates from hybrid_search, rerank down to final count
+- **OpenAI GPT-4o-mini** for VLM — replaces Gemini (rate limit issues), opt-in via `VLM_ENABLED=true`
+- **Cohere reranking** — opt-in via `COHERE_API_KEY`, over-fetch 4x then rerank
+- **BM25 OR logic** — AND killed natural language queries; switched to OR-based tsquery
 - **REST API: Tier 1 scope** — Chat, Documents, Conversations only. Eval/usage/settings stay dashboard-only.
-- **REST API: API key auth** — org-scoped, SHA-256 hashed, stored in `api_keys` table. Service role client for all API queries.
-- **REST API: Dual streaming** — SSE default (`text/event-stream`) + AI SDK format (`text/x-vercel-ai-data-stream`) via Accept header
-- **REST API: Same Next.js app** — `/api/v1/` routes alongside existing app, sharing all `lib/rag/*` code
-- **REST API: Direct upload** — multipart/form-data through API server (not presigned URLs)
-- **REST API: Nullable user columns** — `uploaded_by`, `user_id`, `message_feedback.user_id` made nullable for API key auth (no user session)
-- **REST API: Cross-tenant security** — conversationId ownership validated before use (admin client bypasses RLS)
-- **REST API: PromiseLike pattern** — Supabase query builders return PromiseLike, wrap with `void Promise.resolve(...)` to use `.catch()`
+- **REST API: API key auth** — org-scoped, SHA-256 hashed, service role client for all queries
+- **REST API: Dual streaming** — SSE default + AI SDK format via Accept header
 
 ## Eval Results History
 | Run | BM25 | Rerank | Prompt | P@k | R@k | MRR | F | R | C | Cases |
@@ -103,10 +70,6 @@
 | 6 | OR | Yes | New* | 0.72 | 0.98 | 0.98 | 4.9 | 5.0 | 4.4 | 25 |
 
 *Run 6: same config as Run 5 but with trimmed expected answers (removed tangential details from 9 QA pairs)
-
-## Future Enhancements
-- **Inline citations (Perplexity-style)** — ShadCN `inline-citation` component installed. Medium-lift — save for post-launch polish.
-- **OpenAI Responses API** — built-in tool calling (web search) could enhance capabilities. Vercel AI SDK abstracts the API layer, so switching would be straightforward if needed.
 
 ## Open Questions
 - Role-based sidebar visibility (YAGNI'd out of Phase 6)
