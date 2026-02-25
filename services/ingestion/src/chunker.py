@@ -9,6 +9,7 @@ class Chunk:
     index: int
     token_count: int
     metadata: dict = field(default_factory=dict)
+    context: str | None = None
 
 
 @dataclass

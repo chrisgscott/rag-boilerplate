@@ -74,3 +74,7 @@ class TestChunkText:
         chunks = chunk_text("Hello world", ChunkOptions(max_tokens=100, overlap=0.0))
         assert hasattr(chunks[0], "metadata")
         assert isinstance(chunks[0].metadata, dict)
+
+    def test_chunk_has_context_field_defaulting_to_none(self):
+        chunks = chunk_text("Hello world", ChunkOptions(max_tokens=100, overlap=0.0))
+        assert chunks[0].context is None
