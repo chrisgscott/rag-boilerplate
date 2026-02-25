@@ -1,11 +1,13 @@
-import { getModelRates, getSystemPrompt } from "./actions";
+import { getModelRates, getSystemPrompt, getApiKeys } from "./actions";
 import { ModelRatesTable } from "@/components/settings/model-rates-table";
 import { SystemPromptEditor } from "@/components/settings/system-prompt-editor";
+import { ApiKeysSection } from "@/components/settings/api-keys-section";
 
 export default async function SettingsPage() {
-  const [rates, systemPrompt] = await Promise.all([
+  const [rates, systemPrompt, apiKeys] = await Promise.all([
     getModelRates(),
     getSystemPrompt(),
+    getApiKeys(),
   ]);
 
   return (
@@ -16,6 +18,7 @@ export default async function SettingsPage() {
           Manage model rates and configuration.
         </p>
       </div>
+      <ApiKeysSection keys={apiKeys} />
       <SystemPromptEditor initialPrompt={systemPrompt} />
       <ModelRatesTable rates={rates} />
     </div>

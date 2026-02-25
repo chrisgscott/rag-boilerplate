@@ -157,3 +157,79 @@ export async function updateSystemPrompt(prompt: string | null) {
   revalidatePath("/settings");
   return { success: true };
 }
+
+// --- API Key Management ---
+
+export type ApiKeyData = {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  lastUsedAt: string | null;
+  createdAt: string;
+};
+
+export async function getApiKeys(): Promise<ApiKeyData[]> {
+  const { supabase } = await getCurrentOrg();
+
+  const { data, error } = await supabase
+    .from("api_keys")
+    .select("id, name, key_prefix, last_used_at, created_at")
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error("Failed to load API keys");
+
+  return (data ?? []).map((k) => ({
+    id: k.id,
+    name: k.name,
+    keyPrefix: k.key_prefix,
+    lastUsedAt: k.last_used_at,
+    createdAt: k.created_at,
+  }));
+}
+
+export async function createApiKey(
+  name: string
+): Promise<{ key: string } | { error: string }> {
+  const { supabase, organizationId } = await getCurrentOrg();
+
+  if (!name?.trim()) return { error: "Name is required" };
+
+  // Generate key: sk-<32 random hex chars>
+  const randomBytes = new Uint8Array(16);
+  crypto.getRandomValues(randomBytes);
+  const hex = Array.from(randomBytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  const key = `sk-${hex}`;
+  const keyPrefix = key.substring(0, 10); // "sk-" + first 7 hex chars
+
+  // Hash the key
+  const encoder = new TextEncoder();
+  const hashBuffer = await crypto.subtle.digest("SHA-256", encoder.encode(key));
+  const keyHash = Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+
+  const { error } = await supabase.from("api_keys").insert({
+    organization_id: organizationId,
+    name: name.trim(),
+    key_hash: keyHash,
+    key_prefix: keyPrefix,
+  });
+
+  if (error) return { error: "Failed to create API key" };
+
+  revalidatePath("/settings");
+  return { key };
+}
+
+export async function revokeApiKey(keyId: string) {
+  const { supabase } = await getCurrentOrg();
+
+  const { error } = await supabase.from("api_keys").delete().eq("id", keyId);
+
+  if (error) return { error: "Failed to revoke API key" };
+
+  revalidatePath("/settings");
+  return { success: true };
+}
