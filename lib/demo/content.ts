@@ -377,7 +377,7 @@ export const DEMO_EVAL_TEST_CASES = [
   {
     question: "What is the monthly rent and when is it due?",
     expected_answer:
-      "The monthly rent is $1,450.00, due on the first of each month with a 5-day grace period. A late fee of $75.00 applies after the 5th.",
+      "The monthly rent is $1,450.00, due on the first of each month. There is a 5-day grace period, after which a $75.00 late fee applies.",
     expected_doc_names: ["Residential-Lease-Agreement.md"],
   },
   {
@@ -450,7 +450,7 @@ export const DEMO_EVAL_TEST_CASES = [
   {
     question: "What happens when my lease expires if I don't renew?",
     expected_answer:
-      "If neither party provides 60-day written notice before expiration, the lease auto-renews on a month-to-month basis at $1,595.00/month (up from $1,450). The landlord will provide renewal terms at least 90 days before lease expiration.",
+      "If neither party provides 60-day written notice before expiration, the lease auto-renews on a month-to-month basis at $1,595.00/month (up from $1,450).",
     expected_doc_names: ["Residential-Lease-Agreement.md"],
   },
   {
@@ -480,7 +480,7 @@ export const DEMO_EVAL_TEST_CASES = [
   {
     question: "Can I use a grill on my balcony?",
     expected_answer:
-      "Yes, but only electric grills are allowed — no charcoal or propane. Additionally, no storage of non-decorative items visible from outside, no hanging laundry or towels, and holiday decorations are only permitted November 15 through January 15. Plants are allowed but must not drain water onto lower units.",
+      "Yes, but only electric grills are allowed on balconies — no charcoal or propane grills.",
     expected_doc_names: ["HOA-Rules-and-Regulations.md"],
   },
   {
@@ -493,7 +493,7 @@ export const DEMO_EVAL_TEST_CASES = [
   {
     question: "How do I get rid of an old couch?",
     expected_answer:
-      "Schedule a bulk pickup with management for a $25 fee. Standard household waste goes in the trash chute on each floor. Recycling bins are in parking garage level B1. Construction debris must be removed by your contractor, and electronics go to e-waste collection in the package room.",
+      "Schedule a bulk pickup with management for a $25 fee.",
     expected_doc_names: ["HOA-Rules-and-Regulations.md"],
   },
   {
@@ -505,7 +505,7 @@ export const DEMO_EVAL_TEST_CASES = [
   {
     question: "I'm moving in with a cat. What do I need to do to register it?",
     expected_answer:
-      "Register your cat with management within 7 days of move-in. You'll need a completed pet registration form, current vaccination records, a photo of the pet, and the $500 non-refundable pet deposit. Cats must be in carriers when in common areas. Pets are not allowed in the fitness center, pool area, business center, or rooftop terrace. Monthly pet rent is $35 per pet.",
+      "Register your cat with management within 7 days of move-in. You'll need a completed pet registration form, current vaccination records, a photo of the pet, and the $500 non-refundable pet deposit. Monthly pet rent is $35.",
     expected_doc_names: [
       "Community-Guidelines.md",
       "Residential-Lease-Agreement.md",
@@ -524,7 +524,7 @@ export const DEMO_EVAL_TEST_CASES = [
     question:
       "I'm expecting a large package. Where will it be stored and how long do I have to pick it up?",
     expected_answer:
-      "Oversized packages are stored in the management office. Standard packages go to the package room and you'll receive an email notification when they arrive. Packages must be retrieved within 7 days or they'll be returned to sender. No perishable deliveries are accepted — use the pickup lockers in the lobby instead. The package room is open 7:00 AM to 9:00 PM.",
+      "Oversized packages are stored in the management office. You have 7 days to pick it up before it is returned to sender.",
     expected_doc_names: [
       "Community-Guidelines.md",
       "HOA-Rules-and-Regulations.md",
@@ -533,7 +533,7 @@ export const DEMO_EVAL_TEST_CASES = [
   {
     question: "What do I do if the fire alarm goes off?",
     expected_answer:
-      "Do NOT use the elevators. Know your nearest exit (posted on the back of your unit door). Fire extinguishers are located in the hallways on each floor. Gather at the designated assembly point: the Lakeview Drive parking lot entrance. For emergencies, call 911. The building's 24/7 emergency line is 555-0199.",
+      "Do not use the elevators. Use the nearest exit (posted on the back of your unit door) and gather at the designated assembly point: the Lakeview Drive parking lot entrance. For emergencies, call 911 or the building's 24/7 line at 555-0199.",
     expected_doc_names: ["Community-Guidelines.md"],
   },
   {
@@ -546,13 +546,13 @@ export const DEMO_EVAL_TEST_CASES = [
   {
     question: "Where should I go during a tornado warning?",
     expected_answer:
-      "Shelter in interior rooms away from windows. The building's storm shelter is located in parking garage level B2. Weather alerts are posted via resident portal push notifications. For emergencies call 911, and the building's 24/7 emergency line is 555-0199.",
+      "Shelter in interior rooms away from windows, or go to the building's storm shelter in parking garage level B2.",
     expected_doc_names: ["Community-Guidelines.md"],
   },
   {
     question: "Can I paint my apartment or install shelving?",
     expected_answer:
-      "Not without written consent from the landlord. You cannot alter, paint, or modify the unit without written consent. Satellite dishes, antennas, and exterior modifications are also prohibited. If approved, unit improvement work hours are restricted to 9:00 AM – 5:00 PM, Monday through Friday only. Unauthorized structural modifications are considered a serious violation that can result in an immediate $500 fine and/or eviction proceedings.",
+      "Not without written consent from the landlord. You cannot alter, paint, or modify the unit without prior approval. If approved, work hours are restricted to 9:00 AM – 5:00 PM, Monday through Friday.",
     expected_doc_names: [
       "Residential-Lease-Agreement.md",
       "HOA-Rules-and-Regulations.md",

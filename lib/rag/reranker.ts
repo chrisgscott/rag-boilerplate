@@ -2,6 +2,8 @@ import { CohereClient } from "cohere-ai";
 import type { SearchResult } from "./search";
 
 const RERANK_MODEL = "rerank-v3.5";
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 7_000; // 7s base — trial key is 10 req/min
 
 let cohereClient: CohereClient | null = null;
 
@@ -31,14 +33,26 @@ export async function rerankResults(
   if (results.length <= topN) return results;
 
   const client = getClient();
+  const docs = results.map((r) => r.content);
 
-  const response = await client.v2.rerank({
-    model: RERANK_MODEL,
-    query,
-    documents: results.map((r) => r.content),
-    topN,
-  });
-
-  // Map reranked indices back to SearchResult objects
-  return response.results.map((r) => results[r.index]);
+  let lastError: unknown;
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      const response = await client.v2.rerank({
+        model: RERANK_MODEL,
+        query,
+        documents: docs,
+        topN,
+      });
+      return response.results.map((r) => results[r.index]);
+    } catch (err: unknown) {
+      lastError = err;
+      const is429 =
+        err instanceof Error && err.message.includes("429");
+      if (!is429 || attempt === MAX_RETRIES - 1) break;
+      const delay = BASE_DELAY_MS * (attempt + 1);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+  throw lastError;
 }
