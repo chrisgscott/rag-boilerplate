@@ -106,12 +106,12 @@ export async function POST(req: Request) {
     return apiError("internal_error", "Failed to create document record", 500);
   }
 
-  // Enqueue ingestion
-  await admin
-    .rpc("enqueue_ingestion", { p_document_id: documentId })
-    .catch((err: unknown) => {
-      console.error("Failed to enqueue ingestion:", err);
-    });
+  // Enqueue ingestion (fire-and-forget)
+  void Promise.resolve(
+    admin.rpc("enqueue_ingestion", { p_document_id: documentId })
+  ).catch((err: unknown) => {
+    console.error("Failed to enqueue ingestion:", err);
+  });
 
   return apiSuccess(
     { id: documentId, name: file.name, status: "pending", createdAt: new Date().toISOString() },

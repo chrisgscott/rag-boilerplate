@@ -1,15 +1,15 @@
 # Project Plan — RAG Boilerplate
 
 ## Current Status
-- **Phase:** REST API Layer (in progress)
-- **Progress:** Phases 1–6 complete, VLM, eval, reranking done. REST API Task 1 of 9 complete.
-- **Branch:** `main` (3 commits ahead of origin)
+- **Phase:** REST API Layer — COMPLETE
+- **Progress:** Phases 1–7 complete. All features implemented.
+- **Branch:** `main`
 - **Repo:** `https://github.com/chrisgscott/rag-boilerplate.git`
-- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 27 migrations applied
-- **Tests:** 72 TS + 46 Python passing, clean build
+- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 31 migrations applied
+- **Tests:** 120 TS + 46 Python passing, clean build
 - **Tailwind:** v4.2.0
 
-### What's Done (Phases 1-6) — COMPLETE
+### What's Done (Phases 1-7) — ALL COMPLETE
 - Phase 1: Next.js 16 + Supabase auth + dashboard shell
 - Phase 2: Document upload/management + RLS
 - Phase 2.5: Python/FastAPI ingestion (Docling + pgmq)
@@ -17,30 +17,42 @@
 - Phase 4: Chat interface (streaming, conversation history, source citations)
 - Phase 5: Evaluation & cost tracking
 - Phase 6: PropTech Demo & Polish (12 commits)
+- Phase 7: REST API Layer (9 tasks, all complete)
 
-## Recent Changes (This Session)
-- **REST API design:** Brainstormed and wrote design doc at `docs/plans/2026-02-24-rest-api-design.md`
-- **REST API plan:** Wrote 9-task implementation plan at `docs/plans/2026-02-24-rest-api-plan.md`
-- **Task 1 COMPLETE:** Applied `api_keys` table migration (migration 00027) to Supabase Cloud
-- **Using subagent-driven development** to execute tasks 2-9
-
-### REST API Implementation Progress
+## REST API Implementation — COMPLETE
 | Task | Status | Description |
 |------|--------|-------------|
 | 1 | DONE | `api_keys` table migration (00027) |
-| 2 | NEXT | API auth helper (`lib/api/auth.ts`) + response utilities (`lib/api/response.ts`) |
-| 3 | Pending | Documents list + upload (`app/api/v1/documents/route.ts`) |
-| 4 | Pending | Document detail + delete (`app/api/v1/documents/[id]/route.ts`) |
-| 5 | Pending | Conversations list, detail, delete |
-| 6 | Pending | Feedback endpoint |
-| 7 | Pending | Chat API with SSE + AI SDK dual streaming |
-| 8 | Pending | Dashboard API key management UI (settings page) |
-| 9 | Pending | Build verification & cleanup |
+| 2 | DONE | API auth helper (`lib/api/auth.ts`) + response utilities (`lib/api/response.ts`) |
+| 3 | DONE | Documents list + upload (`app/api/v1/documents/route.ts`) |
+| 4 | DONE | Document detail + delete (`app/api/v1/documents/[id]/route.ts`) |
+| 5 | DONE | Conversations list, detail, delete |
+| 6 | DONE | Feedback endpoint |
+| 7 | DONE | Chat API with SSE + AI SDK dual streaming |
+| 8 | DONE | Dashboard API key management UI (settings page) |
+| 9 | DONE | Build verification & cleanup |
+
+### REST API Routes
+- `GET /api/v1/documents` — List documents
+- `POST /api/v1/documents` — Upload document (multipart/form-data)
+- `GET /api/v1/documents/:id` — Document detail with chunk count
+- `DELETE /api/v1/documents/:id` — Delete document + storage
+- `GET /api/v1/conversations` — List conversations
+- `GET /api/v1/conversations/:id` — Conversation detail with messages
+- `DELETE /api/v1/conversations/:id` — Delete conversation
+- `POST /api/v1/conversations/:id/feedback` — Submit message feedback
+- `POST /api/v1/chat` — Chat with RAG (SSE, AI SDK, or non-streaming)
+
+### REST API Migrations Applied
+- 00027: `api_keys` table with RLS
+- 00028: `documents.uploaded_by` DROP NOT NULL (API key auth has no user)
+- 00029: `enqueue_ingestion` allow service_role calls
+- 00030: `conversations.user_id` DROP NOT NULL
+- 00031: `message_feedback.user_id` DROP NOT NULL
 
 ## Next Steps
-1. **Continue REST API implementation** — Tasks 2-9 per plan
-2. **Deploy to Render** — add `VLM_ENABLED=true`, `COHERE_API_KEY` env vars, test end-to-end
-3. **Inline citations** — Perplexity-style bracket ref parsing (deferred)
+1. **Deploy to Render** — add `VLM_ENABLED=true`, `COHERE_API_KEY` env vars, test end-to-end
+2. **Inline citations** — Perplexity-style bracket ref parsing (deferred)
 
 ## Key Decisions
 - No `src/` directory — root-level app/, components/, lib/
@@ -67,6 +79,9 @@
 - **REST API: Dual streaming** — SSE default (`text/event-stream`) + AI SDK format (`text/x-vercel-ai-data-stream`) via Accept header
 - **REST API: Same Next.js app** — `/api/v1/` routes alongside existing app, sharing all `lib/rag/*` code
 - **REST API: Direct upload** — multipart/form-data through API server (not presigned URLs)
+- **REST API: Nullable user columns** — `uploaded_by`, `user_id`, `message_feedback.user_id` made nullable for API key auth (no user session)
+- **REST API: Cross-tenant security** — conversationId ownership validated before use (admin client bypasses RLS)
+- **REST API: PromiseLike pattern** — Supabase query builders return PromiseLike, wrap with `void Promise.resolve(...)` to use `.catch()`
 
 ## Eval Results History
 | Run | BM25 | Rerank | Prompt | P@k | R@k | MRR | F | R | C | Cases |
@@ -93,7 +108,7 @@
 ```bash
 pnpm dev                    # Start Next.js dev server
 pnpm build                  # Build for production
-pnpm vitest run             # Run TypeScript tests (72 tests)
+pnpm vitest run             # Run TypeScript tests (120 tests)
 npx playwright test         # Run Playwright e2e tests (6 tests)
 pnpm db:types               # Regenerate types from schema
 
