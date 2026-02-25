@@ -1,12 +1,12 @@
 # Project Plan — RAG Boilerplate
 
 ## Current Status
-- **Phase:** All core phases complete. Semantic caching feature complete.
-- **Progress:** Phases 1–7 complete + semantic caching (9 tasks, all done).
-- **Branch:** `main` (ahead of origin by ~10 commits)
+- **Phase:** All core phases complete. Semantic caching + contextual chunking complete.
+- **Progress:** Phases 1–7 complete + semantic caching (9 tasks) + contextual chunking (8 tasks).
+- **Branch:** `main` (ahead of origin)
 - **Repo:** `https://github.com/chrisgscott/rag-boilerplate.git`
-- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 32 migrations applied
-- **Tests:** 130 TS + 47 Python passing, clean build
+- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 33 migrations applied
+- **Tests:** 130 TS + 56 Python passing, clean build
 - **Docs:** README.md (setup guide), docs/api-guide.md (REST API reference)
 
 ### What's Done (Phases 1-7 + Semantic Caching) — ALL COMPLETE
@@ -19,9 +19,20 @@
 - Phase 6: PropTech Demo & Polish + VLM visual extraction
 - Phase 7: REST API Layer (9 tasks, all complete, E2E tested)
 - **Semantic Caching** — pgvector response cache with org-wide invalidation (9 tasks, all complete)
+- **Contextual Chunking** — Anthropic-style LLM-generated per-chunk context (8 tasks, all complete)
 - Docs: README setup guide, API reference, "Building On Top of This" guide
 
-### Semantic Caching (just completed)
+### Contextual Chunking (just completed)
+- **Design:** `docs/plans/2026-02-25-contextual-chunking-design.md`
+- **Plan:** `docs/plans/2026-02-25-contextual-chunking-plan.md`
+- **Migration:** `supabase/migrations/00033_contextual_chunking.sql` — `context` column, updated `fts` generated column
+- **Contextualizer module:** `services/ingestion/src/contextualizer.py` — async concurrent GPT-4o-mini calls
+- **Worker integration:** `services/ingestion/src/worker.py` — slots between chunking and embedding
+- **Embedding:** `context + "\n\n" + content` when context available; content-only when not
+- **BM25:** `fts` generated column auto-includes context via `coalesce(context, '') || ' ' || content`
+- **Env vars:** `CONTEXTUAL_CHUNKING_ENABLED=false` (opt-in), `CONTEXTUAL_MODEL=gpt-4o-mini`, `CONTEXTUAL_CONCURRENCY=5`
+
+### Semantic Caching
 - **Design:** `docs/plans/2026-02-25-semantic-caching-design.md`
 - **Plan:** `docs/plans/2026-02-25-semantic-caching-plan.md`
 - **Migration:** `supabase/migrations/00032_response_cache.sql` — `response_cache` table, HNSW index, `cache_lookup` RPC, `cache_version` column
@@ -33,16 +44,14 @@
 - **Env vars:** `SEMANTIC_CACHE_ENABLED=false` (opt-in), `CACHE_SIMILARITY_THRESHOLD=0.95`
 
 ## Next Steps
-1. **Contextual chunking** (Anthropic method — 35-67% failure reduction). Needs brainstorming + design.
-2. **Embeddable chat widget** (`<script>` tag, Intercom-style — REST API backend is ready)
-3. Deploy to Render
+1. **Embeddable chat widget** (`<script>` tag, Intercom-style — REST API backend is ready)
+2. Deploy to Render
 
 ## Backlog (from .ai/INBOX.md)
 
 **High-value additions:**
 - Embeddable chat widget (`<script>` tag, Intercom-style — REST API backend is ready)
 - Inline citations (Perplexity-style — ShadCN component already installed)
-- Contextual chunking (Anthropic method — 35-67% failure reduction)
 
 **Nice to have:**
 - CLI tools (`rag ingest`, `rag eval`, `rag cost-report`)
