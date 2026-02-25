@@ -1,11 +1,11 @@
 # Project Plan — RAG Boilerplate
 
 ## Current Status
-- **Phase:** Phase 6 COMPLETE + VLM + Eval + Reranking + Prompt Tuning
-- **Progress:** Phases 1–6 complete, VLM, 6 eval runs, all committed + pushed
-- **Branch:** `main` (up to date with origin)
+- **Phase:** REST API Layer (in progress)
+- **Progress:** Phases 1–6 complete, VLM, eval, reranking done. REST API Task 1 of 9 complete.
+- **Branch:** `main` (3 commits ahead of origin)
 - **Repo:** `https://github.com/chrisgscott/rag-boilerplate.git`
-- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 26 migrations applied
+- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 27 migrations applied
 - **Tests:** 72 TS + 46 Python passing, clean build
 - **Tailwind:** v4.2.0
 
@@ -19,17 +19,27 @@
 - Phase 6: PropTech Demo & Polish (12 commits)
 
 ## Recent Changes (This Session)
-- **Prompt tuning:** Softened system prompt refusal behavior in `lib/rag/prompt.ts`. Split single rule into: (1) answer with partial info and note gaps, (2) only refuse when context contains nothing relevant.
-- **Copy Results button:** `components/eval/eval-results.tsx` — one-click clipboard copy formats eval as markdown table.
-- **Expanded eval test set:** 18 new QA pairs (25 total). Inserted directly into DB + `lib/demo/content.ts`.
-- **Cohere reranker retry:** `lib/rag/reranker.ts` — retry with 7s/14s/21s backoff on 429 rate limit errors.
-- **Trimmed expected answers:** 9 over-specified QA pairs trimmed to match what a good answer should include (C 3.9→4.4).
-- **6 eval runs completed** — final scores: P@k 0.72, R@k 0.98, MRR 0.98, F 4.9, R 5.0, C 4.4.
-- **All committed + pushed** to origin/main (4 commits this session).
+- **REST API design:** Brainstormed and wrote design doc at `docs/plans/2026-02-24-rest-api-design.md`
+- **REST API plan:** Wrote 9-task implementation plan at `docs/plans/2026-02-24-rest-api-plan.md`
+- **Task 1 COMPLETE:** Applied `api_keys` table migration (migration 00027) to Supabase Cloud
+- **Using subagent-driven development** to execute tasks 2-9
+
+### REST API Implementation Progress
+| Task | Status | Description |
+|------|--------|-------------|
+| 1 | DONE | `api_keys` table migration (00027) |
+| 2 | NEXT | API auth helper (`lib/api/auth.ts`) + response utilities (`lib/api/response.ts`) |
+| 3 | Pending | Documents list + upload (`app/api/v1/documents/route.ts`) |
+| 4 | Pending | Document detail + delete (`app/api/v1/documents/[id]/route.ts`) |
+| 5 | Pending | Conversations list, detail, delete |
+| 6 | Pending | Feedback endpoint |
+| 7 | Pending | Chat API with SSE + AI SDK dual streaming |
+| 8 | Pending | Dashboard API key management UI (settings page) |
+| 9 | Pending | Build verification & cleanup |
 
 ## Next Steps
-1. **Deploy to Render** — add `VLM_ENABLED=true`, `COHERE_API_KEY` env vars, test end-to-end
-2. **Consider OpenAI Responses API** — built-in tool calling (web search) could enhance capabilities
+1. **Continue REST API implementation** — Tasks 2-9 per plan
+2. **Deploy to Render** — add `VLM_ENABLED=true`, `COHERE_API_KEY` env vars, test end-to-end
 3. **Inline citations** — Perplexity-style bracket ref parsing (deferred)
 
 ## Key Decisions
@@ -52,6 +62,11 @@
 - **Lightbox prev/next** — portaled arrows outside DialogContent, centered wrapper pattern for edge positioning
 - **BM25 OR logic** — `websearch_to_tsquery` ANDs all terms (kills natural language queries); switched to OR via `replace(plainto_tsquery(...)::text, ' & ', ' | ')::tsquery`
 - **Cohere reranking** — `cohere-ai` SDK, `rerank-v3.5` model, opt-in via `COHERE_API_KEY` env var; over-fetch 4x candidates from hybrid_search, rerank down to final count
+- **REST API: Tier 1 scope** — Chat, Documents, Conversations only. Eval/usage/settings stay dashboard-only.
+- **REST API: API key auth** — org-scoped, SHA-256 hashed, stored in `api_keys` table. Service role client for all API queries.
+- **REST API: Dual streaming** — SSE default (`text/event-stream`) + AI SDK format (`text/x-vercel-ai-data-stream`) via Accept header
+- **REST API: Same Next.js app** — `/api/v1/` routes alongside existing app, sharing all `lib/rag/*` code
+- **REST API: Direct upload** — multipart/form-data through API server (not presigned URLs)
 
 ## Eval Results History
 | Run | BM25 | Rerank | Prompt | P@k | R@k | MRR | F | R | C | Cases |
