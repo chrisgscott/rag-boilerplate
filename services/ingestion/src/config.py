@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     chunk_max_tokens: int = 512
     chunk_overlap: float = 0.15
 
+    # Contextual chunking (optional — prepends LLM-generated context to chunks)
+    contextual_chunking_enabled: bool = False
+    contextual_model: str = "gpt-4o-mini"
+    contextual_concurrency: int = 5
+
     # VLM (optional — enables visual extraction with OpenAI vision models)
     vlm_enabled: bool = False
     vlm_model: str = "gpt-4o-mini"
