@@ -139,6 +139,7 @@ export type Database = {
         Row: {
           chunk_index: number
           content: string
+          context: string | null
           created_at: string
           document_id: string
           embedding: string | null
@@ -151,6 +152,7 @@ export type Database = {
         Insert: {
           chunk_index: number
           content: string
+          context?: string | null
           created_at?: string
           document_id: string
           embedding?: string | null
@@ -163,6 +165,7 @@ export type Database = {
         Update: {
           chunk_index?: number
           content?: string
+          context?: string | null
           created_at?: string
           document_id?: string
           embedding?: string | null
@@ -565,6 +568,7 @@ export type Database = {
       }
       organizations: {
         Row: {
+          cache_version: number
           created_at: string
           id: string
           is_demo: boolean
@@ -573,6 +577,7 @@ export type Database = {
           system_prompt: string | null
         }
         Insert: {
+          cache_version?: number
           created_at?: string
           id?: string
           is_demo?: boolean
@@ -581,6 +586,7 @@ export type Database = {
           system_prompt?: string | null
         }
         Update: {
+          cache_version?: number
           created_at?: string
           id?: string
           is_demo?: boolean
@@ -619,6 +625,50 @@ export type Database = {
           {
             foreignKeyName: "profiles_current_organization_id_fkey"
             columns: ["current_organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      response_cache: {
+        Row: {
+          cache_version: number
+          created_at: string
+          id: string
+          model: string
+          organization_id: string
+          query_embedding: string
+          query_text: string
+          response_text: string
+          sources: Json
+        }
+        Insert: {
+          cache_version: number
+          created_at?: string
+          id?: string
+          model: string
+          organization_id: string
+          query_embedding: string
+          query_text: string
+          response_text: string
+          sources?: Json
+        }
+        Update: {
+          cache_version?: number
+          created_at?: string
+          id?: string
+          model?: string
+          organization_id?: string
+          query_embedding?: string
+          query_text?: string
+          response_text?: string
+          sources?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "response_cache_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
@@ -686,6 +736,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cache_lookup: {
+        Args: {
+          org_cache_version: number
+          org_id: string
+          query_embedding: string
+          similarity_threshold?: number
+        }
+        Returns: {
+          id: string
+          model: string
+          response_text: string
+          similarity: number
+          sources: Json
+        }[]
+      }
       cleanup_stale_ingestion_jobs: { Args: never; Returns: undefined }
       enqueue_ingestion: { Args: { p_document_id: string }; Returns: number }
       get_user_organizations: { Args: never; Returns: string[] }
