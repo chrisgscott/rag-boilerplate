@@ -10,6 +10,7 @@ from src.parser import parse_document, ParseResult
 from src.chunker import chunk_text, ChunkOptions, Chunk
 from src.embedder import embed_texts
 from src.vlm import get_visual_pages, describe_visual_pages, upload_page_images, enrich_sections
+from src.contextualizer import contextualize_chunks
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +72,13 @@ def chunk_sections(parse_result: ParseResult, doc_name: str) -> list[Chunk]:
     return all_chunks
 
 
+def get_embedding_text(chunk: Chunk) -> str:
+    """Build the text string used for embedding. Prepends context if available."""
+    if chunk.context:
+        return f"{chunk.context}\n\n{chunk.content}"
+    return chunk.content
+
+
 def upsert_chunks(
     chunks: list[Chunk],
     embeddings: list[list[float]],
@@ -85,6 +93,7 @@ def upsert_chunks(
             "document_id": document_id,
             "organization_id": organization_id,
             "content": chunk.content,
+            "context": chunk.context,
             "embedding": json.dumps(embeddings[i]),
             "chunk_index": chunk.index,
             "token_count": chunk.token_count,
@@ -157,8 +166,12 @@ async def process_message(message: dict) -> None:
             if not chunks:
                 raise ValueError("No chunks generated from document")
 
+            # Contextual chunking (optional — adds LLM-generated context per chunk)
+            if settings.contextual_chunking_enabled:
+                chunks = await contextualize_chunks(chunks, parse_result.text, settings)
+
             # Embed
-            embedding_result = embed_texts([c.content for c in chunks])
+            embedding_result = embed_texts([get_embedding_text(c) for c in chunks])
 
             # Upsert to database
             upsert_chunks(
