@@ -379,3 +379,210 @@ describe("DELETE /api/v1/conversations/:id", () => {
     expect(res.status).toBe(500);
   });
 });
+
+describe("POST /api/v1/conversations/:id/feedback", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("returns 401 when auth fails", async () => {
+    mockAuth.mockResolvedValue({
+      error: new Response(
+        JSON.stringify({
+          error: { code: "unauthorized", message: "Invalid" },
+        }),
+        { status: 401 }
+      ),
+    });
+
+    const { POST } = await import(
+      "@/app/api/v1/conversations/[id]/feedback/route"
+    );
+    const req = new Request(
+      "http://localhost/api/v1/conversations/conv-1/feedback",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId: 1, rating: 5 }),
+      }
+    );
+    const res = await POST(req, {
+      params: Promise.resolve({ id: "conv-1" }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 400 when messageId or rating missing", async () => {
+    mockAuth.mockResolvedValue({
+      data: { organizationId: "org-1", apiKeyId: "key-1" },
+    });
+
+    const { POST } = await import(
+      "@/app/api/v1/conversations/[id]/feedback/route"
+    );
+    const req = new Request(
+      "http://localhost/api/v1/conversations/conv-1/feedback",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      }
+    );
+    const res = await POST(req, {
+      params: Promise.resolve({ id: "conv-1" }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when rating is not 1 or 5", async () => {
+    mockAuth.mockResolvedValue({
+      data: { organizationId: "org-1", apiKeyId: "key-1" },
+    });
+
+    const { POST } = await import(
+      "@/app/api/v1/conversations/[id]/feedback/route"
+    );
+    const req = new Request(
+      "http://localhost/api/v1/conversations/conv-1/feedback",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId: 1, rating: 3 }),
+      }
+    );
+    const res = await POST(req, {
+      params: Promise.resolve({ id: "conv-1" }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 404 when conversation not found", async () => {
+    mockAuth.mockResolvedValue({
+      data: { organizationId: "org-1", apiKeyId: "key-1" },
+    });
+    mockFrom.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: null,
+              error: { message: "Not found" },
+            }),
+          }),
+        }),
+      }),
+    });
+
+    const { POST } = await import(
+      "@/app/api/v1/conversations/[id]/feedback/route"
+    );
+    const req = new Request(
+      "http://localhost/api/v1/conversations/missing/feedback",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId: 1, rating: 5 }),
+      }
+    );
+    const res = await POST(req, {
+      params: Promise.resolve({ id: "missing" }),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it("returns success when feedback is submitted", async () => {
+    mockAuth.mockResolvedValue({
+      data: { organizationId: "org-1", apiKeyId: "key-1" },
+    });
+
+    let callCount = 0;
+    mockFrom.mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        // conversations query
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: { id: "conv-1" },
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+        };
+      } else {
+        // message_feedback insert
+        return {
+          insert: vi.fn().mockResolvedValue({
+            error: null,
+          }),
+        };
+      }
+    });
+
+    const { POST } = await import(
+      "@/app/api/v1/conversations/[id]/feedback/route"
+    );
+    const req = new Request(
+      "http://localhost/api/v1/conversations/conv-1/feedback",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId: 1, rating: 5, comment: "Great!" }),
+      }
+    );
+    const res = await POST(req, {
+      params: Promise.resolve({ id: "conv-1" }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data.submitted).toBe(true);
+  });
+
+  it("returns 500 when insert fails", async () => {
+    mockAuth.mockResolvedValue({
+      data: { organizationId: "org-1", apiKeyId: "key-1" },
+    });
+
+    let callCount = 0;
+    mockFrom.mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: { id: "conv-1" },
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+        };
+      } else {
+        return {
+          insert: vi.fn().mockResolvedValue({
+            error: { message: "DB error" },
+          }),
+        };
+      }
+    });
+
+    const { POST } = await import(
+      "@/app/api/v1/conversations/[id]/feedback/route"
+    );
+    const req = new Request(
+      "http://localhost/api/v1/conversations/conv-1/feedback",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId: 1, rating: 1 }),
+      }
+    );
+    const res = await POST(req, {
+      params: Promise.resolve({ id: "conv-1" }),
+    });
+    expect(res.status).toBe(500);
+  });
+});

@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_keys: {
+        Row: {
+          created_at: string
+          id: string
+          key_hash: string
+          key_prefix: string
+          last_used_at: string | null
+          name: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key_hash: string
+          key_prefix: string
+          last_used_at?: string | null
+          name: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key_hash?: string
+          key_prefix?: string
+          last_used_at?: string | null
+          name?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_keys_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversations: {
         Row: {
           created_at: string
@@ -160,10 +201,11 @@ export type Database = {
           mime_type: string
           name: string
           organization_id: string
+          parsed_content: string | null
           status: string
           storage_path: string
           updated_at: string
-          uploaded_by: string
+          uploaded_by: string | null
         }
         Insert: {
           chunk_count?: number | null
@@ -176,10 +218,11 @@ export type Database = {
           mime_type: string
           name: string
           organization_id: string
+          parsed_content?: string | null
           status?: string
           storage_path: string
           updated_at?: string
-          uploaded_by: string
+          uploaded_by?: string | null
         }
         Update: {
           chunk_count?: number | null
@@ -192,10 +235,11 @@ export type Database = {
           mime_type?: string
           name?: string
           organization_id?: string
+          parsed_content?: string | null
           status?: string
           storage_path?: string
           updated_at?: string
-          uploaded_by?: string
+          uploaded_by?: string | null
         }
         Relationships: [
           {
@@ -349,7 +393,7 @@ export type Database = {
           message_id: number
           organization_id: string
           rating: number
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           comment?: string | null
@@ -359,7 +403,7 @@ export type Database = {
           message_id: number
           organization_id: string
           rating: number
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           comment?: string | null
@@ -369,7 +413,7 @@ export type Database = {
           message_id?: number
           organization_id?: string
           rating?: number
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -645,6 +689,7 @@ export type Database = {
       cleanup_stale_ingestion_jobs: { Args: never; Returns: undefined }
       enqueue_ingestion: { Args: { p_document_id: string }; Returns: number }
       get_user_organizations: { Args: never; Returns: string[] }
+      get_user_owner_organizations: { Args: never; Returns: string[] }
       hybrid_search: {
         Args: {
           filter_document_ids?: string[]
@@ -657,6 +702,7 @@ export type Database = {
         }
         Returns: {
           chunk_id: number
+          chunk_index: number
           content: string
           document_id: string
           fts_rank: number
