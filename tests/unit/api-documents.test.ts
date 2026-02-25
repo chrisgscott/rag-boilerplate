@@ -63,7 +63,7 @@ describe("GET /api/v1/documents", () => {
                 name: "lease.pdf",
                 mime_type: "application/pdf",
                 file_size: 1024,
-                status: "ready",
+                status: "complete",
                 created_at: "2026-01-01T00:00:00Z",
                 updated_at: "2026-01-01T00:00:00Z",
               },
@@ -145,5 +145,132 @@ describe("POST /api/v1/documents", () => {
     });
     const res = await POST(req);
     expect(res.status).toBe(422);
+  });
+});
+
+describe("GET /api/v1/documents/:id", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns 404 when document not found", async () => {
+    mockAuth.mockResolvedValue({ data: { organizationId: "org-1", apiKeyId: "key-1" } });
+    mockFrom.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({ data: null, error: { message: "Not found" } }),
+          }),
+        }),
+      }),
+    });
+
+    const { GET } = await import("@/app/api/v1/documents/[id]/route");
+    const req = new Request("http://localhost/api/v1/documents/nonexistent");
+    const res = await GET(req, { params: Promise.resolve({ id: "nonexistent" }) });
+    expect(res.status).toBe(404);
+  });
+
+  it("returns document details on success", async () => {
+    mockAuth.mockResolvedValue({ data: { organizationId: "org-1", apiKeyId: "key-1" } });
+    mockFrom.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: {
+                id: "doc-1",
+                name: "lease.pdf",
+                mime_type: "application/pdf",
+                file_size: 1024,
+                status: "complete",
+                chunk_count: 15,
+                created_at: "2026-01-01T00:00:00Z",
+                updated_at: "2026-01-01T00:00:00Z",
+              },
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    });
+
+    const { GET } = await import("@/app/api/v1/documents/[id]/route");
+    const req = new Request("http://localhost/api/v1/documents/doc-1");
+    const res = await GET(req, { params: Promise.resolve({ id: "doc-1" }) });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data.id).toBe("doc-1");
+  });
+});
+
+describe("DELETE /api/v1/documents/:id", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns 404 when document not found", async () => {
+    mockAuth.mockResolvedValue({ data: { organizationId: "org-1", apiKeyId: "key-1" } });
+    mockFrom.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({ data: null, error: { message: "Not found" } }),
+          }),
+        }),
+      }),
+    });
+
+    const { DELETE } = await import("@/app/api/v1/documents/[id]/route");
+    const req = new Request("http://localhost/api/v1/documents/nonexistent", { method: "DELETE" });
+    const res = await DELETE(req, { params: Promise.resolve({ id: "nonexistent" }) });
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 400 when document is processing", async () => {
+    mockAuth.mockResolvedValue({ data: { organizationId: "org-1", apiKeyId: "key-1" } });
+    mockFrom.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: { storage_path: "org-1/doc-1/file.pdf", status: "processing" },
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    });
+
+    const { DELETE } = await import("@/app/api/v1/documents/[id]/route");
+    const req = new Request("http://localhost/api/v1/documents/doc-1", { method: "DELETE" });
+    const res = await DELETE(req, { params: Promise.resolve({ id: "doc-1" }) });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns success when document is deleted", async () => {
+    mockAuth.mockResolvedValue({ data: { organizationId: "org-1", apiKeyId: "key-1" } });
+    mockFrom.mockImplementation(() => ({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: { storage_path: "org-1/doc-1/file.pdf", status: "complete" },
+              error: null,
+            }),
+          }),
+        }),
+      }),
+      delete: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ error: null }),
+      }),
+    }));
+
+    const { DELETE } = await import("@/app/api/v1/documents/[id]/route");
+    const req = new Request("http://localhost/api/v1/documents/doc-1", { method: "DELETE" });
+    const res = await DELETE(req, { params: Promise.resolve({ id: "doc-1" }) });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data.deleted).toBe(true);
   });
 });
