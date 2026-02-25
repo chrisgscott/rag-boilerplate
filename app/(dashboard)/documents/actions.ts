@@ -123,7 +123,7 @@ export async function deleteDocument(documentId: string) {
   // Get document details before deleting
   const { data: doc } = await supabase
     .from("documents")
-    .select("storage_path, status")
+    .select("storage_path, status, organization_id")
     .eq("id", documentId)
     .single();
 
@@ -147,6 +147,20 @@ export async function deleteDocument(documentId: string) {
   if (error) {
     console.error("Document delete failed:", error);
     return { error: "Failed to delete document" };
+  }
+
+  // Invalidate semantic cache — increment cache_version
+  const { data: currentOrg } = await supabase
+    .from("organizations")
+    .select("cache_version")
+    .eq("id", doc.organization_id)
+    .single();
+
+  if (currentOrg) {
+    await supabase
+      .from("organizations")
+      .update({ cache_version: (currentOrg.cache_version ?? 1) + 1 })
+      .eq("id", doc.organization_id);
   }
 
   revalidatePath("/documents");

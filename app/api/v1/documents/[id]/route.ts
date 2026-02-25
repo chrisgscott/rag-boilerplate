@@ -63,5 +63,19 @@ export async function DELETE(req: Request, { params }: RouteParams) {
 
   if (error) return apiError("internal_error", "Failed to delete document", 500);
 
+  // Invalidate semantic cache
+  const { data: currentOrg } = await admin
+    .from("organizations")
+    .select("cache_version")
+    .eq("id", organizationId)
+    .single();
+
+  if (currentOrg) {
+    await admin
+      .from("organizations")
+      .update({ cache_version: (currentOrg.cache_version ?? 1) + 1 })
+      .eq("id", organizationId);
+  }
+
   return apiSuccess({ deleted: true });
 }

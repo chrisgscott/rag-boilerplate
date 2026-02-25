@@ -250,21 +250,38 @@ describe("DELETE /api/v1/documents/:id", () => {
 
   it("returns success when document is deleted", async () => {
     mockAuth.mockResolvedValue({ data: { organizationId: "org-1", apiKeyId: "key-1" } });
-    mockFrom.mockImplementation(() => ({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "organizations") {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { cache_version: 1 },
+                error: null,
+              }),
+            }),
+          }),
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ error: null }),
+          }),
+        };
+      }
+      return {
+        select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: { storage_path: "org-1/doc-1/file.pdf", status: "complete" },
-              error: null,
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { storage_path: "org-1/doc-1/file.pdf", status: "complete" },
+                error: null,
+              }),
             }),
           }),
         }),
-      }),
-      delete: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({ error: null }),
-      }),
-    }));
+        delete: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ error: null }),
+        }),
+      };
+    });
 
     const { DELETE } = await import("@/app/api/v1/documents/[id]/route");
     const req = new Request("http://localhost/api/v1/documents/doc-1", { method: "DELETE" });
