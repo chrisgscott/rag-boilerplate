@@ -9,6 +9,8 @@ import { hybridSearch } from "@/lib/rag/search";
 import { buildSystemPrompt } from "@/lib/rag/prompt";
 import { getLLMProvider, getModelId } from "@/lib/rag/provider";
 import { trackUsage } from "@/lib/rag/cost-tracker";
+import { embedQuery } from "@/lib/rag/embedder";
+import { isCacheEnabled, lookupCache, writeCache } from "@/lib/rag/cache";
 
 const REFUSAL_MESSAGE =
   "I don't have enough information in the available documents to answer that question.";
@@ -52,11 +54,12 @@ export async function POST(req: Request) {
   // Fetch org-level system prompt (if configured)
   const { data: org } = await supabase
     .from("organizations")
-    .select("system_prompt")
+    .select("system_prompt, cache_version")
     .eq("id", organizationId)
     .single();
 
   const orgSystemPrompt = org?.system_prompt ?? null;
+  const cacheVersion = org?.cache_version ?? 1;
 
   // 4. Get or create conversation
   let conversationId = existingConversationId;
@@ -113,10 +116,81 @@ export async function POST(req: Request) {
 
   const userMessageId = userMsg?.id ?? null;
 
+  // 6b. Semantic cache check (before search + LLM)
+  const cacheEnabled = isCacheEnabled();
+  let queryEmbedding: { embedding: number[]; tokenCount: number } | null = null;
+
+  if (cacheEnabled) {
+    queryEmbedding = await embedQuery(latestMessage.content);
+
+    const cached = await lookupCache(supabase, queryEmbedding.embedding, organizationId, cacheVersion);
+
+    if (cached) {
+      // Save cached response as assistant message
+      await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        parent_message_id: userMessageId,
+        role: "assistant",
+        content: cached.responseText,
+        parts: [{ type: "text", text: cached.responseText }],
+        sources: cached.sources,
+        model: cached.model,
+      });
+
+      // Track usage with zero LLM cost
+      void Promise.resolve(
+        trackUsage(supabase, {
+          organizationId,
+          userId: user.id,
+          queryText: latestMessage.content,
+          embeddingTokens: queryEmbedding.tokenCount,
+          llmInputTokens: 0,
+          llmOutputTokens: 0,
+          model: cached.model,
+          chunksRetrieved: 0,
+        })
+      ).catch(() => {});
+
+      // Return cached response via simulated streaming
+      const cachedStream = createUIMessageStream({
+        execute: ({ writer }) => {
+          writer.write({ type: "text-start", id: "cached" });
+          writer.write({
+            type: "text-delta",
+            id: "cached",
+            delta: cached.responseText,
+          });
+          writer.write({ type: "finish-step" });
+          writer.write({ type: "finish", finishReason: "stop" });
+        },
+      });
+
+      const cachedSourcesHeader = JSON.stringify(
+        (cached.sources as any[]).map((s: any) => ({
+          documentId: s.documentId,
+          documentName: s.documentName,
+          chunkId: s.chunkId,
+          chunkIndex: s.chunkIndex,
+          ...(s.pageImagePaths ? { pageImagePaths: s.pageImagePaths } : {}),
+        }))
+      );
+
+      return createUIMessageStreamResponse({
+        stream: cachedStream,
+        headers: {
+          "x-conversation-id": conversationId,
+          "x-sources": cachedSourcesHeader,
+          "x-cache-status": "hit",
+        },
+      });
+    }
+  }
+
   // 7. Search
   const searchResponse = await hybridSearch(supabase, {
     query: latestMessage.content,
     organizationId,
+    ...(queryEmbedding ? { precomputedEmbedding: queryEmbedding } : {}),
   });
 
   // 8. Threshold gate
@@ -218,6 +292,35 @@ export async function POST(req: Request) {
         }).catch((e) => {
           console.error("Failed to track usage:", e);
         });
+
+        // Write to semantic cache (fire-and-forget)
+        if (cacheEnabled && queryEmbedding) {
+          void Promise.resolve(
+            writeCache(
+              supabase,
+              queryEmbedding.embedding,
+              latestMessage.content,
+              organizationId,
+              cacheVersion,
+              text,
+              relevantResults.map((r) => {
+                const meta = r.metadata as Record<string, unknown> | null;
+                const pip = meta?.page_image_paths as Record<string, string> | undefined;
+                return {
+                  documentId: r.documentId,
+                  documentName: r.documentName,
+                  chunkId: r.chunkId,
+                  chunkIndex: r.chunkIndex,
+                  content: r.content,
+                  similarity: r.similarity,
+                  rrfScore: r.rrfScore,
+                  ...(pip ? { pageImagePaths: pip } : {}),
+                };
+              }),
+              modelId
+            )
+          ).catch(() => {});
+        }
       } catch (e) {
         console.error("Failed to save assistant message:", e);
       }
@@ -242,6 +345,7 @@ export async function POST(req: Request) {
     headers: {
       "x-conversation-id": conversationId,
       "x-sources": sourcesHeader,
+      ...(cacheEnabled ? { "x-cache-status": "miss" } : {}),
     },
   });
 }
