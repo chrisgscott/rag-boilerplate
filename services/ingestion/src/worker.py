@@ -98,6 +98,20 @@ def upsert_chunks(
         supabase.table("document_chunks").insert(batch).execute()
 
 
+def bump_cache_version(organization_id: str):
+    """Increment the org's cache_version to invalidate semantic cache."""
+    conn = _get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE organizations SET cache_version = cache_version + 1 WHERE id = %s",
+                (organization_id,),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 async def process_message(message: dict) -> None:
     """Process a single ingestion job message."""
     document_id = message["document_id"]
@@ -162,6 +176,10 @@ async def process_message(message: dict) -> None:
                 chunk_count=len(chunks),
                 parsed_content=parse_result.text,
             )
+
+            # Invalidate semantic cache for this org
+            bump_cache_version(organization_id)
+
             logger.info(
                 f"Document {document_id} processed: {len(chunks)} chunks, "
                 f"{embedding_result.token_count} tokens"

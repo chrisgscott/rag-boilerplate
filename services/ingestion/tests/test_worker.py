@@ -6,11 +6,12 @@ from src.worker import process_message
 
 
 class TestProcessMessage:
+    @patch("src.worker._get_db_connection")
     @patch("src.worker.settings")
     @patch("src.worker._get_supabase")
     @patch("src.worker.parse_document")
     @patch("src.worker.embed_texts")
-    async def test_orchestrates_full_pipeline(self, mock_embed, mock_parse, mock_supabase, mock_settings):
+    async def test_orchestrates_full_pipeline(self, mock_embed, mock_parse, mock_supabase, mock_settings, mock_db_conn):
         # Config — no VLM
         mock_settings.vlm_enabled = False
         mock_settings.chunk_max_tokens = 512
@@ -139,6 +140,7 @@ class TestProcessMessage:
 
 
 class TestProcessMessageWithVLM:
+    @patch("src.worker._get_db_connection")
     @patch("src.worker.enrich_sections")
     @patch("src.worker.upload_page_images")
     @patch("src.worker.describe_visual_pages", new_callable=AsyncMock)
@@ -157,6 +159,7 @@ class TestProcessMessageWithVLM:
         mock_describe,
         mock_upload,
         mock_enrich,
+        mock_db_conn,
     ):
         # Config with VLM enabled
         mock_settings.vlm_enabled = True
@@ -207,6 +210,7 @@ class TestProcessMessageWithVLM:
         mock_upload.assert_called_once()
         mock_enrich.assert_called_once()
 
+    @patch("src.worker._get_db_connection")
     @patch("src.worker.get_visual_pages")
     @patch("src.worker.settings")
     @patch("src.worker._get_supabase")
@@ -219,6 +223,7 @@ class TestProcessMessageWithVLM:
         mock_supabase,
         mock_settings,
         mock_visual_pages,
+        mock_db_conn,
     ):
         mock_settings.vlm_enabled = False
         mock_settings.chunk_max_tokens = 512
