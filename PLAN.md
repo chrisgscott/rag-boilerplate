@@ -50,9 +50,18 @@
 - 00030: `conversations.user_id` DROP NOT NULL
 - 00031: `message_feedback.user_id` DROP NOT NULL
 
+## Recent Changes (This Session)
+- **REST API Tasks 2-9 complete** — all endpoints implemented, tested, reviewed
+- **E2E API testing** — all 9 endpoints tested manually with curl using a real API key
+- **Bug fix: proxy redirect** — `/api/v1/` routes were 307ing to `/auth/login` (added exclusion in `lib/supabase/proxy.ts`)
+- **Bug fix: UIMessage format** — AI SDK `convertToModelMessages` requires `parts` array, not plain `content` (added conversion in `app/api/v1/chat/route.ts`)
+- **API guide** — comprehensive docs at `docs/api-guide.md` with curl examples for all endpoints
+- **13 commits** ahead of origin/main
+
 ## Next Steps
-1. **Deploy to Render** — add `VLM_ENABLED=true`, `COHERE_API_KEY` env vars, test end-to-end
-2. **Inline citations** — Perplexity-style bracket ref parsing (deferred)
+1. **Push to origin** — 13 commits ready
+2. **Deploy to Render** — add `VLM_ENABLED=true`, `COHERE_API_KEY` env vars, test end-to-end
+3. **Inline citations** — Perplexity-style bracket ref parsing (deferred)
 
 ## Key Decisions
 - No `src/` directory — root-level app/, components/, lib/
