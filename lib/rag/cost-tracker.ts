@@ -4,7 +4,7 @@ import { calculateCost, DEFAULT_MODEL_RATES, type ModelRates } from "./cost";
 
 type TrackUsageInput = {
   organizationId: string;
-  userId: string;
+  userId: string | null;
   queryText: string;
   embeddingTokens: number;
   llmInputTokens: number;
