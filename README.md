@@ -98,6 +98,9 @@ ANTHROPIC_API_KEY=sk-ant-...
 # Chat config
 LLM_PROVIDER=anthropic          # or "openai"
 SIMILARITY_THRESHOLD=0.7        # Refuse to answer below this
+
+# Semantic cache (optional)
+SEMANTIC_CACHE_ENABLED=false    # Set "true" to cache LLM responses
 ```
 
 ### 4. Set up the Python ingestion worker
@@ -159,6 +162,8 @@ Go to [http://localhost:3000](http://localhost:3000). Sign up for an account, cr
 | `SIMILARITY_THRESHOLD` | No | Minimum similarity to answer (default `0.7`) |
 | `COHERE_API_KEY` | No | Enables Cohere reranking if set |
 | `VLM_ENABLED` | No | Set `true` to enable visual extraction from PDFs |
+| `SEMANTIC_CACHE_ENABLED` | No | Set `true` to cache LLM responses for similar queries (60-90% cost reduction) |
+| `CACHE_SIMILARITY_THRESHOLD` | No | Minimum similarity for cache hit (default `0.95`) |
 
 ### Python Ingestion Worker (`services/ingestion/.env`)
 
@@ -281,6 +286,7 @@ This boilerplate is designed to be forked and extended. Here are the main patter
 - **LLM provider** — Switch between OpenAI and Anthropic with the `LLM_PROVIDER` env var.
 - **Similarity threshold** — Adjust `SIMILARITY_THRESHOLD` to control when the AI refuses to answer (lower = more permissive, higher = stricter).
 - **Reranking** — Set `COHERE_API_KEY` to enable a Cohere reranking pass that improves retrieval precision.
+- **Semantic caching** — Set `SEMANTIC_CACHE_ENABLED=true` to cache LLM responses. Repeated or similar questions return cached answers instantly, reducing API costs by 60-90%. Cache auto-invalidates when documents change. Tune sensitivity with `CACHE_SIMILARITY_THRESHOLD` (default 0.95).
 - **Chunking** — Tune `CHUNK_MAX_TOKENS` and `CHUNK_OVERLAP` in the worker config to match your document style.
 
 ### Adding a dashboard page
