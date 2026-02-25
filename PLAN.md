@@ -1,15 +1,15 @@
 # Project Plan — RAG Boilerplate
 
 ## Current Status
-- **Phase:** All core phases complete. Docs & polish in progress.
-- **Progress:** Phases 1–7 complete. Pushed to origin. README and API guide written.
-- **Branch:** `main` (up to date with origin)
+- **Phase:** All core phases complete. Semantic caching feature complete.
+- **Progress:** Phases 1–7 complete + semantic caching (9 tasks, all done).
+- **Branch:** `main` (ahead of origin by ~10 commits)
 - **Repo:** `https://github.com/chrisgscott/rag-boilerplate.git`
-- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 31 migrations applied
-- **Tests:** 120 TS + 46 Python passing, clean build
+- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 32 migrations applied
+- **Tests:** 130 TS + 47 Python passing, clean build
 - **Docs:** README.md (setup guide), docs/api-guide.md (REST API reference)
 
-### What's Done (Phases 1-7) — ALL COMPLETE
+### What's Done (Phases 1-7 + Semantic Caching) — ALL COMPLETE
 - Phase 1: Next.js 16 + Supabase auth + dashboard shell
 - Phase 2: Document upload/management + RLS
 - Phase 2.5: Python/FastAPI ingestion (Docling + pgmq)
@@ -18,18 +18,30 @@
 - Phase 5: Evaluation & cost tracking + Cohere reranking
 - Phase 6: PropTech Demo & Polish + VLM visual extraction
 - Phase 7: REST API Layer (9 tasks, all complete, E2E tested)
+- **Semantic Caching** — pgvector response cache with org-wide invalidation (9 tasks, all complete)
 - Docs: README setup guide, API reference, "Building On Top of This" guide
 
+### Semantic Caching (just completed)
+- **Design:** `docs/plans/2026-02-25-semantic-caching-design.md`
+- **Plan:** `docs/plans/2026-02-25-semantic-caching-plan.md`
+- **Migration:** `supabase/migrations/00032_response_cache.sql` — `response_cache` table, HNSW index, `cache_lookup` RPC, `cache_version` column
+- **Cache module:** `lib/rag/cache.ts` — `isCacheEnabled()`, `lookupCache()`, `writeCache()`
+- **Search optimization:** `lib/rag/search.ts` — `precomputedEmbedding` support (avoids double OpenAI API calls)
+- **Dashboard chat:** `app/api/chat/route.ts` — cache check + simulated streaming on hit
+- **API chat:** `app/api/v1/chat/route.ts` — cache for all 3 formats (JSON, AI SDK, SSE)
+- **Invalidation:** Python worker bumps `cache_version` after ingestion; dashboard + API deletion also bumps
+- **Env vars:** `SEMANTIC_CACHE_ENABLED=false` (opt-in), `CACHE_SIMILARITY_THRESHOLD=0.95`
+
 ## Next Steps
-1. **Deploy to Render** — add `VLM_ENABLED=true`, `COHERE_API_KEY` env vars, test end-to-end
-2. Pick next feature from inbox (see `.ai/INBOX.md`)
+1. **Contextual chunking** (Anthropic method — 35-67% failure reduction). Needs brainstorming + design.
+2. **Embeddable chat widget** (`<script>` tag, Intercom-style — REST API backend is ready)
+3. Deploy to Render
 
 ## Backlog (from .ai/INBOX.md)
 
 **High-value additions:**
 - Embeddable chat widget (`<script>` tag, Intercom-style — REST API backend is ready)
 - Inline citations (Perplexity-style — ShadCN component already installed)
-- Semantic caching in pgvector (60-90% cost reduction)
 - Contextual chunking (Anthropic method — 35-67% failure reduction)
 
 **Nice to have:**
@@ -55,9 +67,13 @@
 - **OpenAI GPT-4o-mini** for VLM — replaces Gemini (rate limit issues), opt-in via `VLM_ENABLED=true`
 - **Cohere reranking** — opt-in via `COHERE_API_KEY`, over-fetch 4x then rerank
 - **BM25 OR logic** — AND killed natural language queries; switched to OR-based tsquery
-- **REST API: Tier 1 scope** — Chat, Documents, Conversations only. Eval/usage/settings stay dashboard-only.
-- **REST API: API key auth** — org-scoped, SHA-256 hashed, service role client for all queries
+- **REST API: Tier 1 scope** — Chat, Documents, Conversations only
+- **REST API: API key auth** — org-scoped, SHA-256 hashed, service role client
 - **REST API: Dual streaming** — SSE default + AI SDK format via Accept header
+- **Semantic cache: Full LLM response** — not just retrieval; LLM is 95%+ of cost
+- **Semantic cache: Org-wide invalidation** — `cache_version` counter, bumped on doc ingest/delete
+- **Semantic cache: Simulated streaming** — cache hits stream like normal for consistent UX
+- **Semantic cache: 0.95 threshold** — conservative default, env-configurable
 
 ## Eval Results History
 | Run | BM25 | Rerank | Prompt | P@k | R@k | MRR | F | R | C | Cases |
@@ -80,10 +96,10 @@
 ```bash
 pnpm dev                    # Start Next.js dev server
 pnpm build                  # Build for production
-pnpm vitest run             # Run TypeScript tests (120 tests)
+pnpm vitest run             # Run TypeScript tests (130 tests)
 npx playwright test         # Run Playwright e2e tests (6 tests)
 pnpm db:types               # Regenerate types from schema
 
 # Python service (from services/ingestion/)
-source .venv/bin/activate && pytest -v  # Run Python tests (46 tests)
+source .venv/bin/activate && pytest -v  # Run Python tests (47 tests)
 ```
