@@ -435,4 +435,33 @@ describe("hybridSearch", () => {
       expect(response.results).toEqual([]);
     });
   });
+
+  it("skips embedQuery when precomputedEmbedding is provided", async () => {
+    const precomputed = { embedding: FAKE_EMBEDDING, tokenCount: 42 };
+    const { client, rpcMock } = mockSupabase({
+      rpcData: [SAMPLE_RPC_ROW],
+      documentsData: [{ id: "doc-1", name: "Lease.md" }],
+    });
+
+    const response = await hybridSearch(client, {
+      query: "What is the pet policy?",
+      organizationId: ORG_ID,
+      precomputedEmbedding: precomputed,
+    });
+
+    // embedQuery should NOT have been called
+    expect(mockEmbedQuery).not.toHaveBeenCalled();
+
+    // RPC should use the precomputed embedding
+    expect(rpcMock).toHaveBeenCalledWith(
+      "hybrid_search",
+      expect.objectContaining({
+        query_embedding: FAKE_EMBEDDING,
+      })
+    );
+
+    // Token count should come from precomputed value
+    expect(response.queryTokenCount).toBe(42);
+    expect(response.results).toHaveLength(1);
+  });
 });

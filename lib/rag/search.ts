@@ -10,6 +10,7 @@ export type SearchParams = {
   matchCount?: number;
   fullTextWeight?: number;
   semanticWeight?: number;
+  precomputedEmbedding?: { embedding: number[]; tokenCount: number };
   filters?: {
     documentIds?: string[];
     mimeTypes?: string[];
@@ -47,7 +48,9 @@ export async function hybridSearch(
   const candidateCount = useRerank ? finalCount * 4 : finalCount;
 
   // 1. Embed the query
-  const { embedding, tokenCount } = await embedQuery(params.query);
+  const { embedding, tokenCount } = params.precomputedEmbedding
+    ? { embedding: params.precomputedEmbedding.embedding, tokenCount: params.precomputedEmbedding.tokenCount }
+    : await embedQuery(params.query);
 
   // 2. Resolve filters to document IDs
   const filterDocumentIds = params.filters
