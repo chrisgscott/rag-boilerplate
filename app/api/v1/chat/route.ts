@@ -6,6 +6,8 @@ import { hybridSearch } from "@/lib/rag/search";
 import { buildSystemPrompt } from "@/lib/rag/prompt";
 import { getLLMProvider, getModelId } from "@/lib/rag/provider";
 import { trackUsage } from "@/lib/rag/cost-tracker";
+import { embedQuery } from "@/lib/rag/embedder";
+import { isCacheEnabled, lookupCache, writeCache } from "@/lib/rag/cache";
 
 const REFUSAL_MESSAGE =
   "I don't have enough information in the available documents to answer that question.";
@@ -49,14 +51,15 @@ export async function POST(req: Request) {
 
   const admin = createAdminClient();
 
-  // 3. Fetch org system prompt
+  // 3. Fetch org system prompt and cache version
   const { data: org } = await admin
     .from("organizations")
-    .select("system_prompt")
+    .select("system_prompt, cache_version")
     .eq("id", organizationId)
     .single();
 
   const orgSystemPrompt = org?.system_prompt ?? null;
+  const cacheVersion = org?.cache_version ?? 1;
 
   // 4. Get or create conversation
   let conversationId = existingConversationId;
@@ -119,10 +122,116 @@ export async function POST(req: Request) {
 
   const userMessageId = userMsg?.id ?? null;
 
+  // Determine response format early (needed for cache hit + refusal paths)
+  const acceptHeader = req.headers.get("accept") ?? "";
+  const useAiSdkFormat = acceptHeader.includes("text/x-vercel-ai-data-stream");
+
+  // 6b. Semantic cache check
+  const cacheEnabled = isCacheEnabled();
+  let queryEmbedding: { embedding: number[]; tokenCount: number } | null = null;
+
+  if (cacheEnabled) {
+    queryEmbedding = await embedQuery(latestMessage.content);
+
+    const cached = await lookupCache(admin, queryEmbedding.embedding, organizationId, cacheVersion);
+
+    if (cached) {
+      // Save cached response as assistant message
+      await admin.from("messages").insert({
+        conversation_id: conversationId,
+        parent_message_id: userMessageId,
+        role: "assistant",
+        content: cached.responseText,
+        sources: cached.sources,
+        model: cached.model,
+      });
+
+      // Track usage with zero LLM cost
+      trackUsage(admin, {
+        organizationId,
+        userId: null,
+        queryText: latestMessage.content,
+        embeddingTokens: queryEmbedding.tokenCount,
+        llmInputTokens: 0,
+        llmOutputTokens: 0,
+        model: cached.model,
+        chunksRetrieved: 0,
+      }).catch(() => {});
+
+      const cachedSources = (cached.sources as any[]).map((s: any) => ({
+        documentId: s.documentId,
+        documentName: s.documentName,
+        chunkId: s.chunkId,
+        chunkIndex: s.chunkIndex,
+        content: s.content,
+        similarity: s.similarity,
+      }));
+
+      // Non-streaming JSON response
+      if (!shouldStream) {
+        return apiSuccess({
+          conversationId,
+          message: cached.responseText,
+          sources: cachedSources,
+          cached: true,
+        });
+      }
+
+      // AI SDK format
+      if (useAiSdkFormat) {
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream({
+          start(controller) {
+            controller.enqueue(encoder.encode(`0:${JSON.stringify(cached.responseText)}\n`));
+            controller.close();
+          },
+        });
+        return new Response(stream, {
+          headers: {
+            "Content-Type": "text/x-vercel-ai-data-stream",
+            "x-conversation-id": conversationId!,
+            "x-sources": JSON.stringify(cachedSources.map(({ content: _c, ...rest }) => rest)),
+            "x-cache-status": "hit",
+          },
+        });
+      }
+
+      // SSE format (default)
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(
+            encoder.encode(
+              `event: text-delta\ndata: ${JSON.stringify({ content: cached.responseText })}\n\n`
+            )
+          );
+          controller.enqueue(
+            encoder.encode(`event: sources\ndata: ${JSON.stringify(cachedSources)}\n\n`)
+          );
+          controller.enqueue(
+            encoder.encode(
+              `event: done\ndata: ${JSON.stringify({ conversationId, cached: true })}\n\n`
+            )
+          );
+          controller.close();
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "x-cache-status": "hit",
+        },
+      });
+    }
+  }
+
   // 7. Search
   const searchResponse = await hybridSearch(admin, {
     query: latestMessage.content,
     organizationId,
+    ...(queryEmbedding ? { precomputedEmbedding: queryEmbedding } : {}),
   });
 
   // 8. Threshold gate
@@ -130,10 +239,6 @@ export async function POST(req: Request) {
   const relevantResults = searchResponse.results.filter(
     (r: { similarity: number }) => r.similarity >= similarityThreshold
   );
-
-  // Determine response format early (needed for refusal path too)
-  const acceptHeader = req.headers.get("accept") ?? "";
-  const useAiSdkFormat = acceptHeader.includes("text/x-vercel-ai-data-stream");
 
   if (relevantResults.length === 0) {
     // Save refusal
@@ -269,6 +374,13 @@ export async function POST(req: Request) {
       chunksRetrieved: relevantResults.length,
     }).catch(() => {});
 
+    // Write to semantic cache
+    if (cacheEnabled && queryEmbedding) {
+      void Promise.resolve(
+        writeCache(admin, queryEmbedding.embedding, latestMessage.content, organizationId, cacheVersion, result.text, sources, modelId)
+      ).catch(() => {});
+    }
+
     return apiSuccess({ conversationId, message: result.text, sources });
   }
 
@@ -301,6 +413,12 @@ export async function POST(req: Request) {
           model: modelId,
           chunksRetrieved: relevantResults.length,
         }).catch(() => {});
+
+        if (cacheEnabled && queryEmbedding) {
+          void Promise.resolve(
+            writeCache(admin, queryEmbedding.embedding, latestMessage.content, organizationId, cacheVersion, text, sources, modelId)
+          ).catch(() => {});
+        }
       },
     });
 
@@ -310,6 +428,7 @@ export async function POST(req: Request) {
         "x-sources": JSON.stringify(
           sources.map(({ content: _content, ...rest }) => rest)
         ),
+        ...(cacheEnabled ? { "x-cache-status": "miss" } : {}),
       },
     });
   }
@@ -342,6 +461,12 @@ export async function POST(req: Request) {
         model: modelId,
         chunksRetrieved: relevantResults.length,
       }).catch(() => {});
+
+      if (cacheEnabled && queryEmbedding) {
+        void Promise.resolve(
+          writeCache(admin, queryEmbedding.embedding, latestMessage.content, organizationId, cacheVersion, text, sources, modelId)
+        ).catch(() => {});
+      }
     },
   });
 
@@ -380,6 +505,7 @@ export async function POST(req: Request) {
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
+      ...(cacheEnabled ? { "x-cache-status": "miss" } : {}),
     },
   });
 }
