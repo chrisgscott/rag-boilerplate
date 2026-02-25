@@ -222,10 +222,16 @@ export async function POST(req: Request) {
   const provider = getLLMProvider();
   const modelId = getModelId();
 
+  // Convert simple { role, content } messages to UIMessage format for AI SDK
+  const uiMessages = messages.map((m, i) => ({
+    id: String(i),
+    role: m.role as "user" | "assistant" | "system",
+    parts: [{ type: "text" as const, text: m.content }],
+  }));
+
   let modelMessages;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    modelMessages = await convertToModelMessages(messages as any);
+    modelMessages = await convertToModelMessages(uiMessages);
   } catch {
     return apiError("bad_request", "Invalid message format", 400);
   }
