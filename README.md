@@ -271,17 +271,79 @@ pnpm tsc --noEmit
 pnpm build
 ```
 
-## Customization
+## Building On Top of This
 
-This boilerplate is designed to be forked and customized. Common changes:
+This boilerplate is designed to be forked and extended. Here are the main patterns you'll use.
 
-- **System prompt** — Set per-organization via the Settings page or `organizations.system_prompt` column
-- **LLM provider** — Switch between OpenAI and Anthropic with the `LLM_PROVIDER` env var
-- **Similarity threshold** — Adjust `SIMILARITY_THRESHOLD` to control answer refusal sensitivity
-- **Chunking parameters** — Tune `CHUNK_MAX_TOKENS` and `CHUNK_OVERLAP` in the worker config
-- **Reranking** — Add a `COHERE_API_KEY` to enable Cohere reranking for better retrieval precision
-- **Branding** — Update the dashboard UI in `components/` and styles in `app/globals.css`
-- **Add new file types** — Extend the allowed MIME types in the upload routes and add Docling parsers
+### Configuration (no code changes)
+
+- **System prompt** — Set per-organization via Settings or the `organizations.system_prompt` column. The RAG pipeline automatically wraps your prompt with retrieved context, citation instructions, and safety rules.
+- **LLM provider** — Switch between OpenAI and Anthropic with the `LLM_PROVIDER` env var.
+- **Similarity threshold** — Adjust `SIMILARITY_THRESHOLD` to control when the AI refuses to answer (lower = more permissive, higher = stricter).
+- **Reranking** — Set `COHERE_API_KEY` to enable a Cohere reranking pass that improves retrieval precision.
+- **Chunking** — Tune `CHUNK_MAX_TOKENS` and `CHUNK_OVERLAP` in the worker config to match your document style.
+
+### Adding a dashboard page
+
+1. Create `app/(dashboard)/your-feature/page.tsx`
+2. Colocate server actions in `app/(dashboard)/your-feature/actions.ts`
+3. Use `createClient()` from `lib/supabase/server` for user-scoped queries — RLS handles authorization automatically
+
+The eval system (`app/(dashboard)/eval/`) is a good reference for this pattern.
+
+### Adding an API endpoint
+
+1. Create `app/api/v1/your-resource/route.ts`
+2. Start every handler with `authenticateApiKey(req)` — it returns the `organizationId` or an error response
+3. Use `createAdminClient()` for queries (API key auth has no user session, so you bypass RLS and filter by org manually)
+4. Return responses with `apiSuccess(data)` or `apiError(code, message, status)`
+
+See `app/api/v1/documents/route.ts` for a clean GET + POST example.
+
+### Adding a new file type
+
+1. Add the MIME type to `ALLOWED_TYPES` in both `app/(dashboard)/documents/actions.ts` and `app/api/v1/documents/route.ts`
+2. Ensure Docling supports parsing the format (or add a custom parser in `services/ingestion/src/`)
+
+### Adding an org-scoped database table
+
+Every table with tenant-specific data follows the same RLS pattern:
+
+```sql
+-- 1. Create table with org reference
+CREATE TABLE my_table (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  -- your columns
+);
+
+-- 2. Enable RLS
+ALTER TABLE my_table ENABLE ROW LEVEL SECURITY;
+
+-- 3. Add policies using get_user_organizations()
+CREATE POLICY "org isolation" ON my_table
+  FOR ALL USING (organization_id IN (SELECT get_user_organizations()));
+```
+
+After adding the migration, regenerate types: `pnpm db:types`
+
+### Modifying the RAG pipeline
+
+The pipeline lives in `lib/rag/` with clear responsibilities:
+
+- **`search.ts`** — `hybridSearch()` orchestrates embedding, RPC call, and optional reranking. Add new filters by extending the `SearchParams` type.
+- **`prompt.ts`** — `buildSystemPrompt()` assembles the system message from the org's custom prompt, retrieved context, and safety rules. Modify this to change how context is formatted or add new instructions.
+- **`provider.ts`** — `getLLMProvider()` returns the configured LLM client. Add a new provider here (e.g., Gemini, Llama) and it'll work across both the dashboard and API automatically.
+- **`reranker.ts`** — `rerankResults()` uses Cohere. Swap in a different reranker or custom scoring function here.
+
+### Extending the evaluation system
+
+The eval toolkit at `app/(dashboard)/eval/` runs two-phase evaluation:
+
+1. **Retrieval metrics** (Phase 1) — Precision@k, Recall@k, MRR against expected source documents
+2. **Answer quality** (Phase 2) — LLM-as-judge scores for Faithfulness, Relevance, Completeness
+
+To add test cases: create a test set, then add cases with a question, expected answer, and expected source document IDs. Run an eval to get scores. The judge prompt in `lib/rag/eval-runner.ts` can be modified to evaluate additional dimensions.
 
 ## License
 
