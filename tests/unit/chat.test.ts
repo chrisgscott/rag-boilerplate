@@ -185,9 +185,12 @@ describe("buildSystemPrompt", () => {
     {
       documentId: "doc-1",
       documentName: "Test-Doc.md",
-      chunkId: "chunk-1",
+      chunkId: 1,
+      chunkIndex: 0,
       content: "Test content",
+      metadata: {},
       similarity: 0.9,
+      ftsRank: 0.5,
       rrfScore: 0.8,
       rank: 1,
     },

@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, beforeEach, type Mock } from "vitest";
+import { vi, describe, it, expect, beforeEach, afterEach, type Mock } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // Mock the embedder and reranker modules (must be before importing search)
