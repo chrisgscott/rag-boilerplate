@@ -10,6 +10,18 @@ export type SearchParams = {
   matchCount?: number;
   fullTextWeight?: number;
   semanticWeight?: number;
+  /**
+   * Override whether reranking is enabled for this search.
+   * When provided, takes precedence over the COHERE_API_KEY env var check.
+   * Allows the optimizer to experiment with reranking on/off without changing env vars.
+   */
+  rerankEnabled?: boolean;
+  /**
+   * Override the candidate multiplier when reranking.
+   * Candidates fetched = matchCount * rerankCandidateMultiplier.
+   * Defaults to 4 if not provided.
+   */
+  rerankCandidateMultiplier?: number;
   precomputedEmbedding?: { embedding: number[]; tokenCount: number };
   filters?: {
     documentIds?: string[];
@@ -43,9 +55,12 @@ export async function hybridSearch(
   params: SearchParams
 ): Promise<SearchResponse> {
   const finalCount = params.matchCount ?? 5;
-  const useRerank = isRerankEnabled();
-  // Over-fetch candidates when reranking (4x) so the cross-encoder has more to work with
-  const candidateCount = useRerank ? finalCount * 4 : finalCount;
+  // params.rerankEnabled takes precedence over the env var check when explicitly provided
+  const useRerank =
+    params.rerankEnabled !== undefined ? params.rerankEnabled : isRerankEnabled();
+  // Over-fetch candidates when reranking so the cross-encoder has more to work with
+  const candidateMultiplier = params.rerankCandidateMultiplier ?? 4;
+  const candidateCount = useRerank ? finalCount * candidateMultiplier : finalCount;
 
   // 1. Embed the query
   const { embedding, tokenCount } = params.precomputedEmbedding

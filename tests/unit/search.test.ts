@@ -436,6 +436,188 @@ describe("hybridSearch", () => {
     });
   });
 
+  // --- rerankEnabled / rerankCandidateMultiplier override tests ---
+
+  describe("rerankEnabled override in SearchParams", () => {
+    it("enables reranking when rerankEnabled:true even if isRerankEnabled() returns false", async () => {
+      // isRerankEnabled mock returns false (no COHERE_API_KEY), but we force via SearchParams
+      mockIsRerankEnabled.mockReturnValue(false);
+
+      const candidates = Array.from({ length: 20 }, (_, i) => ({
+        ...SAMPLE_RPC_ROW,
+        chunk_id: i + 1,
+        document_id: `doc-${i + 1}`,
+      }));
+      const rerankedSubset = candidates.slice(0, 5).map((row) => ({
+        chunkId: row.chunk_id,
+        chunkIndex: row.chunk_index,
+        documentId: row.document_id,
+        documentName: "Unknown document",
+        content: row.content,
+        metadata: row.metadata,
+        similarity: row.similarity,
+        ftsRank: row.fts_rank,
+        rrfScore: row.rrf_score,
+      }));
+      mockRerankResults.mockResolvedValue(rerankedSubset);
+
+      const { client, rpcMock } = mockSupabase({ rpcData: candidates });
+
+      const response = await hybridSearch(client, {
+        query: "lease terms",
+        organizationId: ORG_ID,
+        matchCount: 5,
+        rerankEnabled: true,
+      });
+
+      // Should over-fetch 4x candidates for reranking
+      expect(rpcMock).toHaveBeenCalledWith(
+        "hybrid_search",
+        expect.objectContaining({ match_count: 20 })
+      );
+      // Should call rerankResults
+      expect(mockRerankResults).toHaveBeenCalledWith(
+        "lease terms",
+        expect.any(Array),
+        5
+      );
+      expect(response.results).toHaveLength(5);
+    });
+
+    it("suppresses reranking when rerankEnabled:false even if isRerankEnabled() returns true", async () => {
+      // isRerankEnabled mock returns true (has COHERE_API_KEY), but we suppress via SearchParams
+      mockIsRerankEnabled.mockReturnValue(true);
+
+      const { client, rpcMock } = mockSupabase({
+        rpcData: [SAMPLE_RPC_ROW],
+      });
+
+      await hybridSearch(client, {
+        query: "parking",
+        organizationId: ORG_ID,
+        matchCount: 5,
+        rerankEnabled: false,
+      });
+
+      // Should NOT over-fetch — matchCount passed directly without multiplier
+      expect(rpcMock).toHaveBeenCalledWith(
+        "hybrid_search",
+        expect.objectContaining({ match_count: 5 })
+      );
+      // Should NOT call rerankResults
+      expect(mockRerankResults).not.toHaveBeenCalled();
+
+      // Reset mock
+      mockIsRerankEnabled.mockReturnValue(false);
+    });
+  });
+
+  describe("rerankCandidateMultiplier override in SearchParams", () => {
+    beforeEach(() => {
+      mockIsRerankEnabled.mockReturnValue(true);
+    });
+
+    afterEach(() => {
+      mockIsRerankEnabled.mockReturnValue(false);
+    });
+
+    it("uses custom multiplier when rerankCandidateMultiplier is provided", async () => {
+      const multiplier = 6;
+      const finalCount = 5;
+      const expectedCandidates = finalCount * multiplier; // 30
+
+      const candidates = Array.from({ length: expectedCandidates }, (_, i) => ({
+        ...SAMPLE_RPC_ROW,
+        chunk_id: i + 1,
+        document_id: `doc-${i + 1}`,
+      }));
+      const rerankedSubset = candidates.slice(0, finalCount).map((row) => ({
+        chunkId: row.chunk_id,
+        chunkIndex: row.chunk_index,
+        documentId: row.document_id,
+        documentName: "Unknown document",
+        content: row.content,
+        metadata: row.metadata,
+        similarity: row.similarity,
+        ftsRank: row.fts_rank,
+        rrfScore: row.rrf_score,
+      }));
+      mockRerankResults.mockResolvedValue(rerankedSubset);
+
+      const { client, rpcMock } = mockSupabase({ rpcData: candidates });
+
+      await hybridSearch(client, {
+        query: "test",
+        organizationId: ORG_ID,
+        matchCount: finalCount,
+        rerankCandidateMultiplier: multiplier,
+      });
+
+      // Should use 6x multiplier, not the default 4x
+      expect(rpcMock).toHaveBeenCalledWith(
+        "hybrid_search",
+        expect.objectContaining({ match_count: 30 })
+      );
+    });
+
+    it("ignores rerankCandidateMultiplier when reranking is disabled", async () => {
+      mockIsRerankEnabled.mockReturnValue(false);
+      const { client, rpcMock } = mockSupabase({ rpcData: [SAMPLE_RPC_ROW] });
+
+      await hybridSearch(client, {
+        query: "test",
+        organizationId: ORG_ID,
+        matchCount: 5,
+        rerankEnabled: false,
+        rerankCandidateMultiplier: 10, // large value — must not be used
+      });
+
+      // Should fetch exactly matchCount, no multiplication
+      expect(rpcMock).toHaveBeenCalledWith(
+        "hybrid_search",
+        expect.objectContaining({ match_count: 5 })
+      );
+      expect(mockRerankResults).not.toHaveBeenCalled();
+
+      mockIsRerankEnabled.mockReturnValue(true); // restore for describe block
+    });
+
+    it("falls back to default 4x multiplier when rerankCandidateMultiplier is not provided", async () => {
+      const finalCount = 5;
+
+      const candidates = Array.from({ length: 20 }, (_, i) => ({
+        ...SAMPLE_RPC_ROW,
+        chunk_id: i + 1,
+        document_id: `doc-${i + 1}`,
+      }));
+      mockRerankResults.mockResolvedValue(candidates.slice(0, finalCount).map((row) => ({
+        chunkId: row.chunk_id,
+        chunkIndex: row.chunk_index,
+        documentId: row.document_id,
+        documentName: "Unknown document",
+        content: row.content,
+        metadata: row.metadata,
+        similarity: row.similarity,
+        ftsRank: row.fts_rank,
+        rrfScore: row.rrf_score,
+      })));
+
+      const { client, rpcMock } = mockSupabase({ rpcData: candidates });
+
+      await hybridSearch(client, {
+        query: "test",
+        organizationId: ORG_ID,
+        matchCount: finalCount,
+        // No rerankCandidateMultiplier — should default to 4x
+      });
+
+      expect(rpcMock).toHaveBeenCalledWith(
+        "hybrid_search",
+        expect.objectContaining({ match_count: 20 }) // 5 * 4 = 20
+      );
+    });
+  });
+
   it("skips embedQuery when precomputedEmbedding is provided", async () => {
     const precomputed = { embedding: FAKE_EMBEDDING, tokenCount: 42 };
     const { client, rpcMock } = mockSupabase({
