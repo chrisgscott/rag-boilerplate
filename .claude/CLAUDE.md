@@ -54,9 +54,10 @@ A production-ready RAG boilerplate built on Next.js 15 + Supabase + pgvector. De
 
 ### At Session Start
 1. Read `PLAN.md` (root) for current state
-2. Check `planning/PROJECT_PLAN.md` for current task
-3. Review relevant `specs/` files for the task
-4. Check `docs/rag-design-guide.docx` for RAG-specific guidance
+2. Check `AUTO-OPTIMIZE-BRIEFING.md` for pending nightly agent work (uncommitted code, suggested commits, blockers). If it exists and has unaddressed items, handle them before starting new work.
+3. Check `planning/PROJECT_PLAN.md` for current task
+4. Review relevant `specs/` files for the task
+5. Check `docs/rag-design-guide.docx` for RAG-specific guidance
 
 ### During Development
 - Add ideas to `.ai/INBOX.md` (don't scope creep)
