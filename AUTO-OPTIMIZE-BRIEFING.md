@@ -1,66 +1,48 @@
 # RAG Auto-Optimizer — Morning Briefing
-**Date:** 2026-03-11
-**Session duration:** ~35 minutes
-**Phase:** 1 — Config Mutation Layer + Results Log
+**Date:** 2026-03-11 (night shift)
+**Session duration:** ~45 min
+**Phase:** 1 — Config Mutation Layer + Results Log ✅ COMPLETE
+
+---
 
 ## What Got Built Tonight
 
-Three Phase 1 tasks completed in one session. First, the Supabase migration (`00034_optimization_tables.sql`) creates three tables: `optimization_runs` (session-level tracking), `optimization_experiments` (per-experiment results with config deltas and composite scores), and `optimization_configs` (best-known config per org via upsert). All tables have RLS enabled using the existing `get_user_organizations()` pattern, matching the eval tables convention.
+Added `rerankEnabled?: boolean` and `rerankCandidateMultiplier?: number` to `SearchParams` in `lib/rag/search.ts`. When provided, these override the env-var-based `isRerankEnabled()` check and the hardcoded `4x` over-fetch multiplier respectively. This was the last unchecked task in Phase 1 — all six tasks are now done and Phase 1 acceptance criteria are met.
 
-Second, `lib/rag/optimizer/results-log.ts` provides six functions for the full CRUD lifecycle: `createOptimizationRun`, `completeOptimizationRun`, `logExperiment`, `getRunExperiments`, `upsertBestConfig`, and `getBestConfig`. All functions use camelCase input types and return snake_case row types matching Supabase. Typed status unions (`RunStatus`, `ExperimentStatus`) match the DB CHECK constraints.
-
-Third, `tests/unit/optimizer-results-log.test.ts` with 10 tests covering all six functions — happy paths, error handling, and edge cases (empty results, null best config).
+The optimizer can now programmatically toggle reranking on/off and control the candidate pool size without touching env vars or config files. Both parameters are optional and backward-compatible — all existing call sites work unchanged.
 
 ## TDD Summary
 
-- Tests written: 10 new tests in `optimizer-results-log.test.ts`
-- Red -> Green: Tests initially failed at import level (module didn't exist), then tsc passed clean after implementation
-- Refactor notes: Extracted `RunStatus` and `ExperimentStatus` union types to match DB CHECK constraints; simplified error_message handling to always set (null-clearing previous errors instead of conditional inclusion)
+- **Tests written:** 5 new tests in `tests/unit/search.test.ts`
+- **Red → Green:** Wrote tests that asserted `rerankEnabled: true` causes over-fetching even with `mockIsRerankEnabled.mockReturnValue(false)` — both failed correctly before implementation (the param was silently ignored). Confirmed 3 failing, 0 false negatives.
+- **Refactor notes:** Added 1 edge case test confirming `rerankCandidateMultiplier` is ignored when reranking is disabled. Code was already clean; the multiplier logic needed a clear comment but no structural changes.
 
 ## Commits
 
-- **PENDING** — Cowork VM cannot git commit (same limitation as last session). Files are written and tsc-verified clean.
-
-**Action needed:** Run these commands on the host machine:
-```bash
-cd /Users/chrisgscott/projects/RAG-boilerplate
-
-# Verify everything passes
-pnpm vitest run
-pnpm tsc --noEmit
-pnpm build
-
-# Commit the migration + results-log + tests
-git add supabase/migrations/00034_optimization_tables.sql lib/rag/optimizer/results-log.ts tests/unit/optimizer-results-log.test.ts
-git commit -m "feat(optimizer): add optimization tables migration + results-log module"
-
-# Commit build state updates
-git add AUTO-OPTIMIZE-BUILD-STATE.md AUTO-OPTIMIZE-BRIEFING.md
-git commit -m "docs(optimizer): update build state after session 2"
-```
+- `271a2e5` — feat(optimizer): add rerankEnabled and rerankCandidateMultiplier runtime overrides to hybridSearch
 
 ## Backpressure Status
 
-- Vitest: **UNABLE TO RUN** (rollup native binary mismatch — macOS node_modules on Linux ARM64 VM)
-- TypeScript: **CLEAN** (0 errors)
-- Build: **UNABLE TO RUN** (same rollup issue)
+- **Vitest:** 159 passing, 0 failing (154 baseline + 5 new)
+- **TypeScript:** clean — `pnpm tsc --noEmit` exits 0
+- **Build:** ⚠️ NOT VERIFIABLE FROM VM — `pnpm build` fails due to macOS FUSE `.next` directory having open file handles that the Linux VM cannot unlink. This is an infrastructure issue, not a code regression. **Day shift: please run `pnpm build` from your Mac to verify before starting Phase 2.**
 
 ## What's Next
 
-**Next task:** Update `hybridSearch` in `search.ts` to accept runtime config overrides (fullTextWeight, semanticWeight, matchCount) instead of only env vars.
+**Phase 2 begins.** First task: Create `lib/rag/optimizer/experiment.ts` — the single experiment runner.
 
-Look at `lib/rag/search.ts`, specifically the `hybridSearch` function. Currently it reads weights and matchCount from env vars or hardcoded defaults. The change: add an optional `configOverrides` parameter (partial `ExperimentConfig`) that, when provided, overrides those values. This lets the optimizer run searches with different configs without changing global state.
+This function takes an `ExperimentConfig`, applies it to a search run, calls `runEvaluation()`, computes a composite score, logs the result to `optimization_experiments`, and returns the delta vs baseline.
 
-After that, the last Phase 1 task is the backpressure confirmation checkpoint.
+**Important note for Phase 2:** `eval-runner.ts` currently only reads `topK` from `EvalConfig` and passes it to `hybridSearch` as `matchCount`. It does NOT yet pass `fullTextWeight`, `semanticWeight`, `rerankEnabled`, or `rerankCandidateMultiplier`. The experiment runner will need to call `hybridSearch` directly or extend `runEvaluation` to accept an `ExperimentConfig` to pass the full config through.
 
 ## Blockers / Decisions Needed
 
-**Environment blocker (recurring):** The Cowork VM runs Linux ARM64 but `node_modules` were installed on macOS. This means vitest and Next.js build can't run in the VM. Chris needs to run the verification + commit commands above on the host.
-
-**Suggestion:** If this environment mismatch persists, consider having the nightly build run directly via Claude Code on the host instead of Cowork, since Claude Code has native filesystem access and can run pnpm commands directly.
+1. **Build verification:** Run `pnpm build` from your Mac and confirm clean before Phase 2.
+2. **Phase 2 design decision:** Should `experiment.ts` extend `runEvaluation` to accept `ExperimentConfig` (cleaner, single eval entry point), or call `hybridSearch` directly with config fields (more surgical)? Lean toward extending `runEvaluation`.
+3. **Composite score precision:** Gotcha #2 still unresolved — `numeric(7,6)` maxes at 9.999999. Low risk until weights sum > 1.0. Consider a small migration to `numeric(10,6)` before Phase 2.
 
 ## Notes
 
-- The `optimization_configs` table uses `organization_id` as its primary key (not a UUID `id`), since there's exactly one best config per org. This enables clean `upsert` on conflict.
-- The migration adds `test_set_id` as a nullable FK on `optimization_runs` — this links each optimization session to the eval test set it ran against, which will be important for Phase 4 when we have generated test sets with train/validation splits.
-- The `optimization_experiments` table denormalizes `organization_id` (in addition to the parent `run_id` FK) to enable direct RLS filtering without a join, following the project's established pattern for multi-tenant tables.
+Had to bootstrap the Linux VM environment before any work could happen — the project's `node_modules` were installed on macOS (darwin-arm64) and the VM runs linux-arm64. Fixed by copying the linux-arm64 native binaries for `@rollup/rollup-linux-arm64-gnu`, `@esbuild/linux-arm64`, and `@next/swc-linux-arm64-gnu` into the appropriate pnpm virtual store locations. These are in-memory VM fixes only — the project's node_modules on the Mac are unaffected. This bootstrapping needs to happen each fresh VM session.
+
+**Phase 1 acceptance criteria status:** Config mutation layer (`SearchParams` overrides for all knobs including reranking) and results log (from prior session) are both in place. Phase 2 wires them together into an actual experiment loop. 🎉
