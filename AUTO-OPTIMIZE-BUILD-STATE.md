@@ -11,7 +11,7 @@
 - **Repo:** `/Users/chrisgscott/projects/RAG-boilerplate`
 - **Concept doc:** `AUTO-OPTIMIZE.md` (read this first each session)
 - **Stack:** Next.js, TypeScript, Supabase, Vercel AI SDK
-- **Test runner:** `pnpm vitest run` (130 tests must pass before any commit)
+- **Test runner:** `pnpm vitest run` (154 tests must pass before any commit)
 - **Type check:** `pnpm tsc --noEmit` (must be clean before any commit)
 - **Build check:** `pnpm build` (must be clean before any commit)
 
@@ -36,9 +36,11 @@ Tasks:
 - [x] Create `lib/rag/optimizer/results-log.ts` — write/read experiment results to Supabase
 - [ ] Update `hybridSearch` in `search.ts` to accept runtime config overrides (fullTextWeight, semanticWeight, matchCount) instead of only env vars
 - [x] Add unit tests for config serialization and results log read/write
-- [ ] Confirm: `pnpm vitest run` passes, `pnpm tsc --noEmit` clean, `pnpm build` clean
+- [x] Confirm: `pnpm vitest run` passes (154 tests), `pnpm tsc --noEmit` clean, `pnpm build` clean — verified and committed by Chris on 2026-03-11
 
 **Acceptance criteria:** Can programmatically run two different configs through `runEvaluation()` and see both results logged to Supabase with correct deltas.
+
+**Note:** Migration 00034 has been applied to Supabase Cloud (project xjzhiprdbzvmijvymkbn). Tables are live.
 
 ---
 
@@ -50,10 +52,15 @@ Tasks:
 - [ ] Implement composite score function with configurable weights (see AUTO-OPTIMIZE.md)
 - [ ] Add "fast mode" to `runEvaluation` — retrieval metrics only, skip LLM judge
 - [ ] Create `lib/rag/optimizer/session.ts` — session loop: establish baseline, iterate experiments, track best config
+- [ ] Add session-level budget cap (max experiments per session, max API cost) — without this, runaway sessions burn money
 - [ ] Add session loop unit tests with mocked eval runner
 - [ ] Confirm: `pnpm vitest run` passes, `pnpm tsc --noEmit` clean, `pnpm build` clean
 
 **Acceptance criteria:** Can run a 5-experiment session against a fixed test set, see keep/discard decisions logged correctly, composite score tracked across experiments.
+
+**Gotcha — rerank toggle:** `rerankEnabled` in ExperimentConfig is a boolean, but reranking is currently gated by `COHERE_API_KEY` presence in `search.ts`, not a flag. Before the optimizer can experiment with reranking on/off, `hybridSearch` needs to accept an explicit `rerankEnabled` override that can suppress reranking even when the key is present. Handle this in the Phase 1 `hybridSearch` config overrides task.
+
+**Gotcha — composite score precision:** DB uses `numeric(7,6)` which maxes at `9.999999`. CompositeWeights don't enforce sum-to-1.0. If weights sum > 1.0 with perfect scores, the composite could exceed the column precision. Either validate weights sum to 1.0 in `computeCompositeScore`, or widen the column to `numeric(10,6)`.
 
 ---
 
@@ -119,6 +126,22 @@ Tasks:
 
 ---
 
+## Known Gotchas
+
+*(Read these before starting each session — they may affect your current phase.)*
+
+1. **Rerank toggle needs code change.** Reranking is gated by `COHERE_API_KEY` env var presence, not a boolean. The optimizer can't toggle it without an explicit `rerankEnabled` override in `hybridSearch`. Address in Phase 1 hybridSearch overrides task.
+
+2. **Composite score column precision.** `numeric(7,6)` maxes at 9.999999. Weights aren't constrained to sum to 1.0. Either validate in `computeCompositeScore` or widen the column. Low risk but will bite if someone sets aggressive weights.
+
+3. **Small test set = noisy signal.** Only 16 active test cases (25 total, 9 trimmed). A single case swinging can flip a delta. Be conservative with keep/discard thresholds — consider requiring improvement on >1 case before keeping a change, or a minimum delta threshold.
+
+4. **Re-ingestion invalidates baselines.** When documents are re-ingested (especially with contextual chunking toggled), embeddings change. The optimizer's baseline was scored against old embeddings. Consider tracking an `embedding_generation` or timestamp on optimization_runs so sessions know if their baseline is stale.
+
+5. **Decide agent costs compound.** Each session's "Decide" step calls an LLM, plus eval may call an LLM judge. Budget cap (max experiments, max cost) is essential before this runs unsupervised nightly.
+
+---
+
 ## Session Log
 
 *(Agent appends after each session)*
@@ -127,21 +150,19 @@ Tasks:
 - **Phase:** 1
 - **Task completed:** Create `lib/rag/optimizer/config.ts` — ExperimentConfig type + helpers
 - **TDD:** red -> green -> refactor
-- **Commits:** pending (Cowork VM cannot commit — needs manual commit on host)
+- **Commits:** `3a28575` (committed by Chris on host, 2026-03-11)
 - **New tests:** 14 (optimizer-config.test.ts)
 - **Duration:** ~30 min
-- **Stopped because:** natural boundary (task complete) + environment limitations (Cowork VM)
-- **Blocker:** Cowork VM cannot run vitest/build (macOS node_modules on Linux VM) or git commit (filesystem permissions). Code is written and tsc-verified. Also fixed 2 pre-existing tsc errors in chat.test.ts and search.test.ts.
+- **Notes:** Also fixed 2 pre-existing tsc errors in chat.test.ts and search.test.ts.
 
 ### 2026-03-11
 - **Phase:** 1
 - **Tasks completed:** Supabase migration for optimization tables + results-log.ts + results-log unit tests
 - **TDD:** red (import fails) -> green (tsc clean with impl) -> refactor (tightened status types, cleaned error_message handling)
-- **Commits:** pending (Cowork VM cannot commit — needs manual commit on host)
+- **Commits:** `3a28575` (combined with session 1 work — committed by Chris on host, 2026-03-11)
 - **New tests:** 10 (optimizer-results-log.test.ts)
 - **Duration:** ~35 min
-- **Stopped because:** natural boundary (3 tasks complete in single session)
-- **Blocker:** Same Cowork VM limitation — cannot run vitest/build (macOS node_modules on Linux ARM64 VM) or git commit. Code is written and tsc-verified clean. Chris needs to run `pnpm vitest run` and `pnpm build` on host, then commit.
+- **Verification by Chris:** 154 tests passing, tsc clean, build clean. Migration 00034 applied to Supabase Cloud. Code reviewed and approved.
 
 ---
 
