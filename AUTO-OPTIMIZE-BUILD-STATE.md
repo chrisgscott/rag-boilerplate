@@ -185,3 +185,13 @@ Tasks:
 - Never leave tests failing, TypeScript erroring, or build broken at end of session.
 - Write the morning briefing to `AUTO-OPTIMIZE-BRIEFING.md` before stopping.
 - Do NOT git push — local commits only.
+
+### VM Environment Setup
+
+**STOP.** Before you manually copy native binaries into the pnpm virtual store, run this:
+
+```bash
+pnpm install --force
+```
+
+That's it. One command. It detects the current platform and rebuilds everything — rollup, esbuild, @next/swc, all of it. Day shift updated your skill file with this fix on 2026-03-11 but you manually shuffled binaries anyway. Don't make us leave another note.
