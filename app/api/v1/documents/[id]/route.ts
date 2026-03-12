@@ -14,7 +14,7 @@ export async function GET(req: Request, { params }: RouteParams) {
 
   const { data, error } = await admin
     .from("documents")
-    .select("id, name, mime_type, file_size, status, chunk_count, created_at, updated_at")
+    .select("id, name, mime_type, file_size, status, chunk_count, metadata, created_at, updated_at")
     .eq("id", id)
     .eq("organization_id", organizationId)
     .single();
@@ -28,6 +28,7 @@ export async function GET(req: Request, { params }: RouteParams) {
     fileSize: data.file_size,
     status: data.status,
     chunkCount: data.chunk_count,
+    metadata: data.metadata ?? {},
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   });

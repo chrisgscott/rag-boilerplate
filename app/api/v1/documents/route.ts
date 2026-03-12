@@ -19,7 +19,7 @@ export async function GET(req: Request) {
 
   const { data, error } = await admin
     .from("documents")
-    .select("id, name, mime_type, file_size, status, created_at, updated_at")
+    .select("id, name, mime_type, file_size, status, metadata, created_at, updated_at")
     .eq("organization_id", organizationId)
     .order("created_at", { ascending: false });
 
@@ -32,6 +32,7 @@ export async function GET(req: Request) {
       mimeType: d.mime_type,
       fileSize: d.file_size,
       status: d.status,
+      metadata: d.metadata ?? {},
       createdAt: d.created_at,
       updatedAt: d.updated_at,
     }))
@@ -54,6 +55,21 @@ export async function POST(req: Request) {
   const file = formData.get("file") as File | null;
   if (!file || file.size === 0) {
     return apiError("bad_request", "No file provided", 400);
+  }
+
+  const metadataRaw = formData.get("metadata") as string | null;
+  let metadata: Record<string, unknown> | undefined;
+  if (metadataRaw !== null) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(metadataRaw);
+    } catch {
+      return apiError("bad_request", "metadata must be valid JSON", 400);
+    }
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return apiError("bad_request", "metadata must be a JSON object", 400);
+    }
+    metadata = parsed as Record<string, unknown>;
   }
 
   if (!ALLOWED_TYPES.includes(file.type)) {
@@ -99,6 +115,7 @@ export async function POST(req: Request) {
     mime_type: file.type,
     file_size: file.size,
     content_hash: contentHash,
+    ...(metadata !== undefined && { metadata }),
   });
 
   if (insertError) {
