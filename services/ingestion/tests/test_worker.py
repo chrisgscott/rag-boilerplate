@@ -449,6 +449,46 @@ class TestDoclingJsonPersistence:
         mock_supabase.assert_not_called()
 
 
+class TestSemanticUnitUpsert:
+    @patch("src.worker._get_supabase")
+    async def test_semantic_units_upserted(self, mock_supabase):
+        """upsert_semantic_units stores units in database."""
+        supabase = MagicMock()
+        mock_supabase.return_value = supabase
+        mock_table = MagicMock()
+        mock_table.insert.return_value.execute.return_value = MagicMock()
+        supabase.table.return_value = mock_table
+
+        from src.worker import upsert_semantic_units
+        from src.semantic_units import SemanticUnit
+
+        mock_unit = SemanticUnit(
+            content="Test content",
+            headings=["Section 1"],
+            label="paragraph",
+            page_numbers=[1],
+            unit_index=0,
+            docling_ref="#/body/0",
+        )
+
+        await upsert_semantic_units("doc-123", "org-456", [mock_unit])
+
+        supabase.table.assert_called_with("document_semantic_units")
+        mock_table.insert.assert_called_once()
+        rows = mock_table.insert.call_args[0][0]
+        assert len(rows) == 1
+        assert rows[0]["content"] == "Test content"
+        assert rows[0]["organization_id"] == "org-456"
+
+    @patch("src.worker._get_supabase")
+    async def test_semantic_units_skipped_when_empty(self, mock_supabase):
+        """upsert_semantic_units does nothing for empty list."""
+        from src.worker import upsert_semantic_units
+
+        await upsert_semantic_units("doc-123", "org-456", [])
+        mock_supabase.assert_not_called()
+
+
 class TestGetEmbeddingText:
     def test_prepends_context_when_present(self):
         from src.worker import get_embedding_text

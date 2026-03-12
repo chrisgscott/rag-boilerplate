@@ -11,6 +11,7 @@ from src.chunker import chunk_text, ChunkOptions, Chunk
 from src.embedder import embed_texts
 from src.vlm import get_visual_pages, describe_visual_pages, upload_page_images, enrich_sections
 from src.contextualizer import contextualize_chunks
+from src.semantic_units import extract_semantic_units as extract_units, SemanticUnit
 
 logger = logging.getLogger(__name__)
 
@@ -133,6 +134,34 @@ async def persist_docling_json(document_id: str, docling_json: dict | None) -> N
     logger.info(f"Persisted DoclingDocument JSON for document {document_id}")
 
 
+async def upsert_semantic_units(
+    document_id: str,
+    organization_id: str,
+    units: list[SemanticUnit],
+) -> None:
+    """Store semantic units in database."""
+    if not units:
+        return
+    supabase = _get_supabase()
+    batch_size = 50
+    for i in range(0, len(units), batch_size):
+        batch = units[i : i + batch_size]
+        rows = [
+            {
+                "document_id": document_id,
+                "organization_id": organization_id,
+                "content": u.content,
+                "headings": u.headings,
+                "label": u.label,
+                "page_numbers": u.page_numbers,
+                "unit_index": u.unit_index,
+                "docling_ref": u.docling_ref,
+            }
+            for u in batch
+        ]
+        supabase.table("document_semantic_units").insert(rows).execute()
+
+
 async def process_message(message: dict) -> None:
     """Process a single ingestion job message."""
     document_id = message["document_id"]
@@ -164,6 +193,12 @@ async def process_message(message: dict) -> None:
 
             # Persist DoclingDocument JSON for re-processing
             await persist_docling_json(document_id, parse_result.docling_json)
+
+            # Extract semantic units (optional — structured extraction via HierarchicalChunker)
+            if settings.extract_semantic_units and parse_result.docling_doc:
+                units = extract_units(parse_result.docling_doc)
+                await upsert_semantic_units(document_id, organization_id, units)
+                logger.info(f"Stored {len(units)} semantic units for {document_id}")
 
             # VLM visual extraction (optional — runs when VLM_ENABLED=true)
             if settings.vlm_enabled and parse_result.docling_doc:

@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     # Docling document persistence (stores full JSON for re-processing)
     persist_docling_doc: bool = True
 
+    # Semantic unit extraction (optional — extracts structured units via HierarchicalChunker)
+    extract_semantic_units: bool = False
+
     # VLM (optional — enables visual extraction with OpenAI vision models)
     vlm_enabled: bool = False
     vlm_model: str = "gpt-4o-mini"
