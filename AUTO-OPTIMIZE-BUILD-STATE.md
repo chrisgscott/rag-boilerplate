@@ -20,7 +20,7 @@
 ## Current State
 
 **Active phase:** 2
-**Last session:** 2026-03-11
+**Last session:** 2026-03-12
 **Overall status:** in progress
 
 ---
@@ -50,7 +50,7 @@ Tasks:
 Tasks:
 - [x] Create `lib/rag/optimizer/experiment.ts` — single experiment runner: apply config delta, run eval, compute composite score, log result, revert config
 - [x] Implement composite score function with configurable weights (see AUTO-OPTIMIZE.md) — completed in Phase 1 as `computeCompositeScore` in `config.ts`
-- [ ] Add "fast mode" to `runEvaluation` — retrieval metrics only, skip LLM judge
+- [x] Add "fast mode" to `runEvaluation` — retrieval metrics only, skip LLM judge
 - [ ] Create `lib/rag/optimizer/session.ts` — session loop: establish baseline, iterate experiments, track best config
 - [ ] Add session-level budget cap (max experiments per session, max API cost) — without this, runaway sessions burn money
 - [ ] Add session loop unit tests with mocked eval runner
@@ -182,6 +182,16 @@ Tasks:
 - **New tests:** 11 (optimizer-experiment.test.ts — pre-existing file with field name bugs, fixed and implementation added)
 - **Duration:** ~20 min
 - **Stopped because:** Natural task boundary — first Phase 2 task complete
+- **Blocker (if any):** None
+
+### 2026-03-12
+- **Phase:** 2
+- **Task completed:** Add "fast mode" to `runEvaluation` — retrieval metrics only, skip LLM judge
+- **TDD:** red (3 failing — runEvaluation doesn't accept options param) -> green (added EvalOptions with retrievalOnly flag) -> refactor (clean, no changes needed)
+- **Suggested commits:** listed in briefing
+- **New tests:** 6 (eval-runner.test.ts — 3 retrievalOnly mode, 1 retrieval still runs, 2 default mode)
+- **Duration:** ~15 min
+- **Stopped because:** Natural task boundary — one task complete, backpressure passing
 - **Blocker (if any):** None
 
 ---

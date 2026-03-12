@@ -1,31 +1,41 @@
 # RAG Auto-Optimizer — Morning Briefing
-**Date:** 2026-03-11
-**Session duration:** ~20 minutes
+**Date:** 2026-03-12
+**Session duration:** ~15 minutes
 **Phase:** 2 — Two-Tier Eval Loop
 
 ## What Got Built Tonight
 
-Created `lib/rag/optimizer/experiment.ts` — the single experiment runner that is the core building block of the optimization loop. It takes a baseline config, applies overrides, runs eval via a dependency-injected runner, computes the composite score, and returns a keep/discard decision with full metrics. Also fixed field name bugs in the pre-existing test file (`avgPrecisionAtK` → `precisionAtK` etc.) and confirmed that Phase 2 Task 2 (composite score function) was already completed in Phase 1 as `computeCompositeScore` in `config.ts`.
+Added "fast mode" to `runEvaluation()` in `lib/rag/eval-runner.ts`. The function now accepts an optional `EvalOptions` parameter with a `retrievalOnly` boolean. When `retrievalOnly: true`, the eval runner skips all LLM answer generation and judge scoring — only retrieval metrics (P@k, R@k, MRR) are computed. This is the foundation for the two-tier eval approach: the optimizer can run cheap retrieval-only passes to screen experiments, then escalate to full judge scoring only for promising candidates.
+
+Created comprehensive test suite in `tests/unit/eval-runner.test.ts` covering both retrieval-only and default modes with properly mocked dependencies.
 
 ## TDD Summary
 
-- **Tests written:** 11 tests (pre-existing file with bugs, fixed and matched to implementation)
-- **Red → Green:** Tests failed because `@/lib/rag/optimizer/experiment` module didn't exist. After creating the module, all 11 tests passed immediately — the test contract was well-defined.
-- **Refactor notes:** Implementation was clean on first pass. No refactoring needed — function is pure with dependency injection, no Supabase calls, clean error handling.
+- **Tests written:** 6 new tests
+- **Red → Green:** 3 tests failed because `runEvaluation` didn't accept an options parameter. Added `EvalOptions` type and conditional guard on the Phase 2 block.
+- **Refactor notes:** Implementation was minimal (2 edits to eval-runner.ts) — no refactoring needed. The change is backwards-compatible since the `options` parameter is optional.
 
 ## Suggested Commits
 
-- `git add lib/rag/optimizer/experiment.ts tests/unit/optimizer-experiment.test.ts AUTO-OPTIMIZE-BUILD-STATE.md AUTO-OPTIMIZE-BRIEFING.md && git commit -m "feat(optimizer): add experiment runner for Phase 2 eval loop"`
+- `git add lib/rag/eval-runner.ts tests/unit/eval-runner.test.ts && git commit -m "feat(optimizer): add retrievalOnly fast mode to runEvaluation"`
+- `git add AUTO-OPTIMIZE-BUILD-STATE.md AUTO-OPTIMIZE-BRIEFING.md && git commit -m "chore(optimizer): update build state and briefing for Phase 2 fast mode task"`
 
 ## Backpressure Status
 
-- **Vitest:** 170 passing, 0 failing
+- **Vitest:** 176 passing, 0 failing
 - **TypeScript:** clean
 - **Build:** clean
 
 ## What's Next
 
-Phase 2, Task 3: Add "fast mode" to `runEvaluation` in `lib/rag/eval-runner.ts` — a boolean flag (e.g., `skipJudge: boolean`) that skips the LLM judge step (Phase 2 answer quality) and returns only retrieval metrics. This enables the two-tier eval strategy: run cheap retrieval-only evals for all experiments, escalate to full judge scoring only when retrieval metrics show improvement.
+Phase 2, Task 4: **Create `lib/rag/optimizer/session.ts`** — the session loop that establishes a baseline, iterates experiments, and tracks the best config. This will:
+1. Run a baseline eval (using `retrievalOnly: true` for the fast tier)
+2. Loop through experiments proposed by the caller
+3. For each experiment, run `runExperiment()` and decide keep/discard
+4. Track the best config found during the session
+5. Optionally escalate promising candidates to full judge scoring
+
+The `ExperimentDeps.evalRunner` type in `experiment.ts` will need to be updated to pass the `EvalOptions` through when the session loop integrates fast mode.
 
 ## Blockers / Decisions Needed
 
@@ -33,6 +43,6 @@ None.
 
 ## Notes
 
-- The `ExperimentDeps` pattern (dependency injection for the eval runner) makes this function fully testable without mocking Supabase or LLM providers. The session loop will provide the real `runEvaluation` as the `evalRunner` dependency.
-- The experiment runner deliberately does NOT write to Supabase — the session loop (`session.ts`, a future task) will call `logExperiment` from `results-log.ts` after getting the result. This keeps the experiment runner pure and composable.
-- Task 2 (composite score) was already implemented in Phase 1's `config.ts` with 5 dedicated tests in `optimizer-config.test.ts`. Marked as done.
+- The `EvalOptions` type is exported so the optimizer's session loop and experiment runner can reference it.
+- Existing callers (`app/(dashboard)/eval/actions.ts`) are unaffected since the new parameter is optional with unchanged default behavior.
+- The experiment runner's `ExperimentDeps.evalRunner` type signature doesn't include `EvalOptions` yet — this is intentional. It will be updated when the session loop task connects the two-tier approach end-to-end.

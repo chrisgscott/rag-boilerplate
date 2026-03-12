@@ -8,7 +8,7 @@
 - **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 34 migrations applied
 - **Tests:** 170 TS + 63 Python passing, clean build
 - **Docs:** README.md (setup guide), docs/api-guide.md (REST API reference)
-- **Automation:** 5 scheduled tasks via local `claude -p` + macOS launchd (see `project_automations.md` in memory)
+- **Automation:** Nightly optimizer via `claude -p` + macOS launchd (11:30 PM). Other automations in `~/Dropbox/projects/claude-automations/`
 
 ### What's Done (Phases 1-7 + Semantic Caching) — ALL COMPLETE
 - Phase 1: Next.js 16 + Supabase auth + dashboard shell
