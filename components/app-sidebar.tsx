@@ -8,6 +8,7 @@ import {
   BarChart3,
   Settings,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -29,6 +30,7 @@ const appNav = [
 
 const adminNav = [
   { title: "Evaluation", url: "/eval", icon: FlaskConical },
+  { title: "Optimizer", url: "/optimize", icon: Sparkles },
   { title: "Usage", url: "/usage", icon: BarChart3 },
   { title: "Settings", url: "/settings", icon: Settings },
   { title: "Admin", url: "/admin", icon: ShieldCheck },

@@ -183,7 +183,8 @@ export async function runEval(testSetId: string) {
   const { data: testCases, error: tcError } = await supabase
     .from("eval_test_cases")
     .select("id, question, expected_answer, expected_source_ids")
-    .eq("test_set_id", testSetId);
+    .eq("test_set_id", testSetId)
+    .eq("status", "validated");
 
   if (tcError || !testCases?.length) {
     return { error: "No test cases found" };
