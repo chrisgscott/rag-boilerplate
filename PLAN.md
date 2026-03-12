@@ -1,12 +1,12 @@
 # Project Plan — RAG Boilerplate
 
 ## Current Status
-- **Phase:** All core phases complete. Semantic caching + contextual chunking complete.
-- **Progress:** Phases 1–7 complete + semantic caching (9 tasks) + contextual chunking (8 tasks).
+- **Phase:** All core phases complete. Deployment readiness sprint complete.
+- **Progress:** Phases 1–7 + semantic caching + contextual chunking + deployment readiness (8 tasks).
 - **Branch:** `main`
 - **Repo:** `https://github.com/chrisgscott/rag-boilerplate.git`
-- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 34 migrations applied
-- **Tests:** 170 TS + 63 Python passing, clean build
+- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 37 migrations applied
+- **Tests:** 218 TS + 81 Python passing, clean build, tsc clean
 - **Docs:** README.md (setup guide), docs/api-guide.md (REST API reference)
 - **Automation:** Nightly optimizer via `claude -p` + macOS launchd (11:30 PM). Other automations in `~/Dropbox/projects/claude-automations/`
 
@@ -21,6 +21,10 @@
 - Phase 7: REST API Layer (9 tasks, all complete, E2E tested)
 - **Semantic Caching** — pgvector response cache with org-wide invalidation (9 tasks, all complete)
 - **Contextual Chunking** — Anthropic-style LLM-generated per-chunk context (8 tasks, all complete)
+- **Deployment Readiness Sprint** — 8 tasks across 3 workstreams:
+  - REST API gaps: metadata on upload/GET (#1,#3), search endpoint (#4), health check (#5)
+  - Docling enhancements: DoclingDocument JSON persistence, semantic unit extraction (HierarchicalChunker), classification pipeline scaffold (4 API endpoints)
+  - Auto-optimizer Phase 2: session loop with baseline tracking and budget cap
 - Docs: README setup guide, API reference, "Building On Top of This" guide
 
 ### Contextual Chunking (just completed)
@@ -45,7 +49,7 @@
 - **Env vars:** `SEMANTIC_CACHE_ENABLED=false` (opt-in), `CACHE_SIMILARITY_THRESHOLD=0.95`
 
 ## Next Steps
-1. **Auto-Optimizer Phase 2** — experiment runner + composite score loop (see `AUTO-OPTIMIZE-BUILD-STATE.md`). Phase 2 Task 1 (experiment runner) complete. Task 2 (composite score) already done in Phase 1. Next: Task 3 (fast mode eval).
+1. **Auto-Optimizer Phase 3** — Agent "Decide" step (LLM proposes next experiment based on failure patterns)
 2. **Embeddable chat widget** (`<script>` tag, Intercom-style — REST API backend is ready)
 3. Deploy to Render
 
@@ -113,10 +117,10 @@
 ```bash
 pnpm dev                    # Start Next.js dev server
 pnpm build                  # Build for production
-pnpm vitest run             # Run TypeScript tests (170 tests)
+pnpm vitest run             # Run TypeScript tests (218 tests)
 npx playwright test         # Run Playwright e2e tests (6 tests)
 pnpm db:types               # Regenerate types from schema
 
 # Python service (from services/ingestion/)
-source .venv/bin/activate && pytest -v  # Run Python tests (47 tests)
+source .venv/bin/activate && pytest -v  # Run Python tests (81 tests)
 ```

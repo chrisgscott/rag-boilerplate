@@ -609,6 +609,147 @@ If no documents pass the similarity threshold (default 0.3), the API returns a r
 
 ---
 
+## Search
+
+### `POST /api/v1/search`
+
+Retrieval-only search — returns ranked document chunks without LLM generation. Useful for building custom UIs or pipelines.
+
+```bash
+curl -s https://your-app.com/api/v1/search \
+  -H "Authorization: Bearer sk-your-key" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "pet policy details", "topK": 5}'
+```
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `query` | string | Yes | Search query text |
+| `topK` | number | No | Max results (default: 5) |
+| `filters.documentIds` | string[] | No | Restrict to specific documents |
+| `filters.mimeTypes` | string[] | No | Filter by MIME type |
+
+**Response:**
+
+```json
+{
+  "data": {
+    "results": [
+      {
+        "chunkId": 123,
+        "chunkIndex": 0,
+        "documentId": "uuid",
+        "documentName": "lease.pdf",
+        "content": "The pet policy states...",
+        "metadata": {},
+        "similarity": 0.85,
+        "rrfScore": 0.032
+      }
+    ],
+    "queryTokenCount": 4
+  }
+}
+```
+
+---
+
+## Health Check
+
+### `GET /api/v1/health`
+
+Returns service health status. **No authentication required.**
+
+```bash
+curl -s https://your-app.com/api/v1/health
+```
+
+**Response:**
+
+```json
+{ "status": "ok" }
+```
+
+---
+
+## Classifications
+
+The classification pipeline provides AI-proposed labels for semantic units extracted from documents. Deployments define their own label schemas; the boilerplate handles the review workflow.
+
+### `GET /api/v1/classifications`
+
+List classification proposals with optional filters.
+
+```bash
+curl -s "https://your-app.com/api/v1/classifications?status=pending&limit=20" \
+  -H "Authorization: Bearer sk-your-key"
+```
+
+**Query parameters:**
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `status` | string | Filter by status: pending, approved, modified, rejected |
+| `document_id` | string | Filter by document UUID |
+| `limit` | number | Max results (default: 50, max: 100) |
+| `offset` | number | Pagination offset (default: 0) |
+
+### `PUT /api/v1/classifications/:id`
+
+Review a single classification proposal.
+
+```bash
+curl -s https://your-app.com/api/v1/classifications/42 \
+  -X PUT \
+  -H "Authorization: Bearer sk-your-key" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "approved"}'
+```
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `status` | string | Yes | One of: approved, modified, rejected |
+| `reviewerLabels` | object | No | Corrected labels (when status is "modified") |
+
+### `PUT /api/v1/classifications/bulk`
+
+Bulk review up to 100 proposals at once.
+
+```bash
+curl -s https://your-app.com/api/v1/classifications/bulk \
+  -X PUT \
+  -H "Authorization: Bearer sk-your-key" \
+  -H "Content-Type: application/json" \
+  -d '{"ids": [1, 2, 3], "status": "approved"}'
+```
+
+### `GET /api/v1/classifications/stats`
+
+Get aggregate counts by status.
+
+```bash
+curl -s "https://your-app.com/api/v1/classifications/stats" \
+  -H "Authorization: Bearer sk-your-key"
+```
+
+**Response:**
+
+```json
+{
+  "data": {
+    "pending": 42,
+    "approved": 15,
+    "modified": 3,
+    "rejected": 2
+  }
+}
+```
+
+---
+
 ## Rate limits
 
 There are currently no rate limits enforced on the API. This may change in future versions.

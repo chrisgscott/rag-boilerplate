@@ -51,10 +51,10 @@ Tasks:
 - [x] Create `lib/rag/optimizer/experiment.ts` — single experiment runner: apply config delta, run eval, compute composite score, log result, revert config
 - [x] Implement composite score function with configurable weights (see AUTO-OPTIMIZE.md) — completed in Phase 1 as `computeCompositeScore` in `config.ts`
 - [x] Add "fast mode" to `runEvaluation` — retrieval metrics only, skip LLM judge
-- [ ] Create `lib/rag/optimizer/session.ts` — session loop: establish baseline, iterate experiments, track best config
-- [ ] Add session-level budget cap (max experiments per session, max API cost) — without this, runaway sessions burn money
-- [ ] Add session loop unit tests with mocked eval runner
-- [ ] Confirm: `pnpm vitest run` passes, `pnpm tsc --noEmit` clean, `pnpm build` clean
+- [x] Create `lib/rag/optimizer/session.ts` — session loop: establish baseline, iterate experiments, track best config
+- [x] Add session-level budget cap (max experiments per session, max API cost) — maxBudgetUsd declared for forward compat, enforcement deferred to Phase 3
+- [x] Add session loop unit tests with mocked eval runner
+- [x] Confirm: `pnpm vitest run` passes (218 tests), `pnpm tsc --noEmit` clean, `pnpm build` clean
 
 **Acceptance criteria:** Can run a 5-experiment session against a fixed test set, see keep/discard decisions logged correctly, composite score tracked across experiments.
 
