@@ -16,35 +16,22 @@ a clear briefing for Chris each morning. You do NOT commit to git — Chris revi
 
 ## Environment Setup (run before anything else)
 
-This skill may run in a sandboxed Linux VM. The project's `node_modules` were installed on macOS,
-so platform-specific native binaries (rollup, etc.) may need to be rebuilt for Linux.
+This skill runs locally on macOS via `claude -p` (launchd). The project's `node_modules`
+are native to this machine — no cross-platform rebuilds needed.
+
 ```bash
 cd /Users/chrisgscott/projects/RAG-boilerplate
-
-# Install pnpm if not available
-if ! command -v pnpm &> /dev/null; then
-  npm install -g pnpm
-fi
-
-# Force reinstall to rebuild native binaries for this platform
-pnpm install --force 2>&1 | tail -5
-
-# If rollup specifically fails, install the linux binary
-if ! node -e "require('@rollup/rollup-linux-arm64-gnu')" 2>/dev/null; then
-  pnpm add -D @rollup/rollup-linux-arm64-gnu 2>/dev/null || true
-fi
 ```
 
-Verify tools work before proceeding:
+Quick sanity check that tools are available:
 ```bash
 pnpm vitest run --help > /dev/null 2>&1 && echo "vitest OK" || echo "vitest BROKEN"
 pnpm tsc --version > /dev/null 2>&1 && echo "tsc OK" || echo "tsc BROKEN"
 pnpm build --help > /dev/null 2>&1 && echo "build OK" || echo "build BROKEN"
 ```
 
-If any tool reports BROKEN after the install, document in the briefing and fall back to
-`pnpm tsc --noEmit` as the minimum verification. Do NOT skip writing code — just note that
-vitest/build couldn't run and Chris needs to verify on the host.
+If any tool reports BROKEN, document in the briefing and fall back to
+`pnpm tsc --noEmit` as the minimum verification.
 
 ---
 
@@ -146,15 +133,23 @@ All three must pass. If any fail:
 
 ---
 
-## No Git Commits — Leave Changes for Review
+## Git Policy — Local Commits Only, No Push
 
-**IMPORTANT: Do NOT run any git commands. No `git add`, no `git commit`, no `git push`.**
+After backpressure passes, commit your work locally with descriptive commit messages.
+Group commits logically (e.g., separate test files from implementation).
 
-This skill runs autonomously without human supervision. For safety, all changes are left
-as unstaged modifications for Chris to review and commit in the morning.
+**NEVER push to remote.** Chris reviews and pushes in the morning.
 
-Instead of committing, write the suggested commit message(s) in the morning briefing under
-the "Suggested Commits" section. Chris will review the diff and commit manually.
+```bash
+# Good — local commit after passing backpressure
+git add lib/rag/optimizer/experiment.ts tests/unit/optimizer-experiment.test.ts
+git commit -m "feat(optimizer): add experiment runner with config override support"
+
+# NEVER do this
+git push  # ← FORBIDDEN
+```
+
+Include the commit hashes in the morning briefing so Chris can review the diffs.
 
 ---
 
@@ -241,12 +236,12 @@ Write to `AUTO-OPTIMIZE-BRIEFING.md` in the project root, overwriting any previo
 - Red -> Green: [describe what the failing tests proved before implementation]
 - Refactor notes: [what was cleaned up, any edge cases added]
 
-## Suggested Commits
+## Commits Made
 
-For each logical unit of work, provide the suggested commit command:
+List each commit with hash and description:
 
-- `git add [specific files] && git commit -m "feat(optimizer): [description]"`
-- `git add [specific files] && git commit -m "test(optimizer): [description]"`
+- `abc1234` — feat(optimizer): [description]
+- `def5678` — test(optimizer): [description]
 
 ## Backpressure Status
 
@@ -280,7 +275,7 @@ Append to the Session Log section of `AUTO-OPTIMIZE-BUILD-STATE.md`:
 - **Phase:** [N]
 - **Task completed:** [task name]
 - **TDD:** red -> green -> refactor [or: stuck at red / stuck at green]
-- **Suggested commits:** [listed in briefing]
+- **Commits:** [hash list]
 - **New tests:** [N]
 - **Duration:** ~[N] min
 - **Stopped because:** [natural boundary / time budget / blocker]

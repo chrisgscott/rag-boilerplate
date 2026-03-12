@@ -19,9 +19,9 @@
 
 ## Current State
 
-**Active phase:** 1 (complete — all tasks done, acceptance criteria met)
+**Active phase:** 2
 **Last session:** 2026-03-11
-**Overall status:** phase 1 complete
+**Overall status:** in progress
 
 ---
 
@@ -48,8 +48,8 @@ Tasks:
 **Goal:** Wrap the existing eval runner in an experiment loop that runs retrieval-only metrics cheaply, escalates to full judge scoring only on promising candidates.
 
 Tasks:
-- [ ] Create `lib/rag/optimizer/experiment.ts` — single experiment runner: apply config delta, run eval, compute composite score, log result, revert config
-- [ ] Implement composite score function with configurable weights (see AUTO-OPTIMIZE.md)
+- [x] Create `lib/rag/optimizer/experiment.ts` — single experiment runner: apply config delta, run eval, compute composite score, log result, revert config
+- [x] Implement composite score function with configurable weights (see AUTO-OPTIMIZE.md) — completed in Phase 1 as `computeCompositeScore` in `config.ts`
 - [ ] Add "fast mode" to `runEvaluation` — retrieval metrics only, skip LLM judge
 - [ ] Create `lib/rag/optimizer/session.ts` — session loop: establish baseline, iterate experiments, track best config
 - [ ] Add session-level budget cap (max experiments per session, max API cost) — without this, runaway sessions burn money
@@ -173,6 +173,16 @@ Tasks:
 - **Duration:** ~45 min (including VM environment bootstrapping — node_modules were macOS-built, required linux-arm64 shims for rollup, esbuild, and next/swc)
 - **Stopped because:** Natural task boundary — Phase 1 complete, all tasks checked
 - **Blocker (if any):** `pnpm build` not runnable from VM (macOS FUSE `.next` dir has open file handles the Linux VM can't unlink). Tests and tsc are clean. Day shift needs to run `pnpm build` from the Mac to verify.
+
+### 2026-03-11 (night shift 2)
+- **Phase:** 2
+- **Tasks completed:** experiment.ts (single experiment runner) + composite score (already done in Phase 1)
+- **TDD:** red (module not found) -> green (11 tests passing) -> refactor (clean, no changes needed)
+- **Suggested commits:** listed in briefing
+- **New tests:** 11 (optimizer-experiment.test.ts — pre-existing file with field name bugs, fixed and implementation added)
+- **Duration:** ~20 min
+- **Stopped because:** Natural task boundary — first Phase 2 task complete
+- **Blocker (if any):** None
 
 ---
 

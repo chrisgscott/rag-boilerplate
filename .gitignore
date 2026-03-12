@@ -44,3 +44,6 @@ next-env.d.ts
 # worktrees
 .worktrees/
 test-results/
+
+# nightly agent logs
+scripts/logs/
