@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     # Semantic unit extraction (optional — extracts structured units via HierarchicalChunker)
     extract_semantic_units: bool = False
 
+    # Classification pipeline (optional)
+    classification_pipeline_enabled: bool = False
+    classification_concurrency: int = 5
+
     # VLM (optional — enables visual extraction with OpenAI vision models)
     vlm_enabled: bool = False
     vlm_model: str = "gpt-4o-mini"
