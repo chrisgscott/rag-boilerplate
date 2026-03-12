@@ -203,6 +203,7 @@ describe("runExperiment", () => {
     expect(result.errorMessage).toBe("OpenAI rate limit");
     expect(result.compositeScore).toBe(0);
     expect(result.delta).toBe(0);
+    expect(result.perCase).toBeNull();
   });
 
   it("passes correct arguments to eval runner", async () => {

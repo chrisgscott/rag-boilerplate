@@ -68,6 +68,7 @@ function makeExperimentResult(overrides: Partial<ExperimentResult> = {}): Experi
     status: "discarded",
     retrievalMetrics: { precisionAtK: 0.8, recallAtK: 0.9, mrr: 1.0 },
     judgeScores: { faithfulness: 4.0, relevance: 4.5, completeness: 4.0 },
+    perCase: null,
     ...overrides,
   };
 }
@@ -315,5 +316,247 @@ describe("runSession", () => {
     expect(result.keptCount).toBe(1);
     expect(result.discardedCount).toBe(1);
     expect(result.experimentsRun).toBe(3);
+  });
+});
+
+// --- Agent-driven mode tests ---
+
+const mockFingerprint = {
+  docCount: 10,
+  chunkCount: 500,
+  lastIngestedAt: "2026-03-01T00:00:00Z",
+};
+
+function makeAgentDeps(overrides: Partial<SessionDeps> = {}): SessionDeps {
+  return {
+    ...makeDeps(),
+    proposeExperiment: vi.fn(),
+    getCorpusFingerprint: vi.fn().mockResolvedValue(mockFingerprint),
+    getInsights: vi.fn().mockResolvedValue(null),
+    upsertInsights: vi.fn().mockResolvedValue(undefined),
+    generateReport: vi.fn().mockReturnValue("# Report"),
+    ...overrides,
+  };
+}
+
+function makeAgentConfig(overrides: Partial<SessionConfig> = {}): SessionConfig {
+  return {
+    organizationId: "org-123",
+    testSetId: "ts-456",
+    compositeWeights: defaultWeights,
+    maxExperiments: 10,
+    maxBudgetUsd: 5.0,
+    experiments: [],
+    ...overrides,
+  };
+}
+
+describe("agent-driven mode (no static experiments)", () => {
+  it("calls proposeExperiment when experiments array is empty", async () => {
+    const proposeExperiment = vi
+      .fn()
+      .mockResolvedValueOnce({
+        stop: false,
+        knob: "topK",
+        value: 10,
+        reasoning: "Try more chunks",
+        hypothesis: "More chunks = better recall",
+      })
+      .mockResolvedValueOnce({
+        stop: true,
+        knob: null,
+        value: null,
+        reasoning: "No more ideas",
+        hypothesis: null,
+      });
+
+    const deps = makeAgentDeps({ proposeExperiment });
+    const config = makeAgentConfig();
+
+    const result = await runSession(config, deps);
+
+    expect(proposeExperiment).toHaveBeenCalled();
+    expect(deps.runExperiment).toHaveBeenCalledTimes(1);
+    expect(result.status).toBe("complete");
+    expect(result.experimentsRun).toBe(1);
+  });
+
+  it("stops when agent returns stop=true immediately", async () => {
+    const proposeExperiment = vi.fn().mockResolvedValue({
+      stop: true,
+      knob: null,
+      value: null,
+      reasoning: "Already optimal",
+      hypothesis: null,
+    });
+
+    const deps = makeAgentDeps({ proposeExperiment });
+    const config = makeAgentConfig();
+
+    const result = await runSession(config, deps);
+
+    expect(proposeExperiment).toHaveBeenCalledTimes(1);
+    expect(deps.runExperiment).not.toHaveBeenCalled();
+    expect(result.experimentsRun).toBe(0);
+    expect(result.status).toBe("complete");
+  });
+
+  it("stops when maxExperiments reached", async () => {
+    const proposeExperiment = vi.fn().mockResolvedValue({
+      stop: false,
+      knob: "topK",
+      value: 10,
+      reasoning: "Try more",
+      hypothesis: "Better recall",
+    });
+
+    const deps = makeAgentDeps({ proposeExperiment });
+    const config = makeAgentConfig({ maxExperiments: 2 });
+
+    const result = await runSession(config, deps);
+
+    expect(deps.runExperiment).toHaveBeenCalledTimes(2);
+    expect(result.experimentsRun).toBe(2);
+  });
+
+  it("passes updated session history to each agent call", async () => {
+    const proposeExperiment = vi
+      .fn()
+      .mockResolvedValueOnce({
+        stop: false,
+        knob: "topK",
+        value: 10,
+        reasoning: "Try more chunks",
+        hypothesis: "Better recall",
+      })
+      .mockResolvedValueOnce({
+        stop: false,
+        knob: "fullTextWeight",
+        value: 2.0,
+        reasoning: "Boost keywords",
+        hypothesis: "Better precision",
+      })
+      .mockResolvedValueOnce({
+        stop: true,
+        knob: null,
+        value: null,
+        reasoning: "Done",
+        hypothesis: null,
+      });
+
+    const deps = makeAgentDeps({ proposeExperiment });
+    const config = makeAgentConfig();
+
+    await runSession(config, deps);
+
+    // First call: empty history
+    const firstContext = proposeExperiment.mock.calls[0][0] as any;
+    expect(firstContext.sessionHistory).toHaveLength(0);
+
+    // Second call: one entry in history
+    const secondContext = proposeExperiment.mock.calls[1][0] as any;
+    expect(secondContext.sessionHistory).toHaveLength(1);
+    expect(secondContext.sessionHistory[0].knob).toBe("topK");
+
+    // Third call: two entries in history
+    const thirdContext = proposeExperiment.mock.calls[2][0] as any;
+    expect(thirdContext.sessionHistory).toHaveLength(2);
+  });
+
+  it("logs reasoning and hypothesis from agent proposal", async () => {
+    const proposeExperiment = vi
+      .fn()
+      .mockResolvedValueOnce({
+        stop: false,
+        knob: "topK",
+        value: 10,
+        reasoning: "More chunks needed",
+        hypothesis: "Recall will improve by 5%",
+      })
+      .mockResolvedValueOnce({
+        stop: true,
+        knob: null,
+        value: null,
+        reasoning: "Done",
+        hypothesis: null,
+      });
+
+    const logExperiment = vi.fn().mockResolvedValue({});
+    const deps = makeAgentDeps({ proposeExperiment, logExperiment });
+    const config = makeAgentConfig();
+
+    await runSession(config, deps);
+
+    expect(logExperiment).toHaveBeenCalledTimes(1);
+    expect(logExperiment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reasoning: "More chunks needed",
+        hypothesis: "Recall will improve by 5%",
+        corpusFingerprint: mockFingerprint,
+      })
+    );
+  });
+
+  it("generates report and updates insights after session", async () => {
+    const proposeExperiment = vi
+      .fn()
+      .mockResolvedValueOnce({
+        stop: false,
+        knob: "topK",
+        value: 10,
+        reasoning: "Try more",
+        hypothesis: "Better",
+      })
+      .mockResolvedValueOnce({
+        stop: true,
+        knob: null,
+        value: null,
+        reasoning: "Done",
+        hypothesis: null,
+      });
+
+    const generateReport = vi.fn().mockReturnValue("# Session Report");
+    const upsertInsights = vi.fn().mockResolvedValue(undefined);
+    const deps = makeAgentDeps({
+      proposeExperiment,
+      generateReport,
+      upsertInsights,
+    });
+    const config = makeAgentConfig();
+
+    await runSession(config, deps);
+
+    expect(generateReport).toHaveBeenCalledTimes(1);
+    expect(generateReport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baselineScore: 0.5,
+        corpusFingerprint: mockFingerprint,
+      })
+    );
+
+    expect(upsertInsights).toHaveBeenCalledTimes(1);
+    expect(upsertInsights).toHaveBeenCalledWith(
+      "org-123",
+      expect.objectContaining({ knobFindings: expect.any(Array) })
+    );
+
+    // Session report should be passed to completeRun
+    expect(deps.completeRun).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionReport: "# Session Report" })
+    );
+  });
+
+  it("falls back to static iteration when experiments provided", async () => {
+    const proposeExperiment = vi.fn();
+    const deps = makeAgentDeps({ proposeExperiment });
+    const config = makeAgentConfig({
+      experiments: [{ topK: 8 }],
+    });
+
+    const result = await runSession(config, deps);
+
+    expect(proposeExperiment).not.toHaveBeenCalled();
+    expect(deps.runExperiment).toHaveBeenCalledTimes(1);
+    expect(result.status).toBe("complete");
   });
 });

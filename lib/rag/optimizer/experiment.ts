@@ -74,6 +74,17 @@ export type ExperimentResult = {
   retrievalMetrics: RetrievalMetricsResult;
   /** Judge scores (null if retrieval-only mode) */
   judgeScores: JudgeScoresResult | null;
+  /** Per-case breakdown for agent-driven optimization */
+  perCase: Array<{
+    testCaseId: string;
+    question: string;
+    precisionAtK: number;
+    recallAtK: number;
+    mrr: number;
+    faithfulness: number | null;
+    relevance: number | null;
+    completeness: number | null;
+  }> | null;
   /** Error message if status is "error" */
   errorMessage?: string;
 };
@@ -163,6 +174,16 @@ export async function runExperiment(
       status,
       retrievalMetrics,
       judgeScores,
+      perCase: evalResult.perCase?.map((pc) => ({
+        testCaseId: pc.testCaseId,
+        question: pc.question,
+        precisionAtK: pc.precisionAtK,
+        recallAtK: pc.recallAtK,
+        mrr: pc.mrr,
+        faithfulness: pc.judgeScores?.faithfulness ?? null,
+        relevance: pc.judgeScores?.relevance ?? null,
+        completeness: pc.judgeScores?.completeness ?? null,
+      })) ?? null,
     };
   } catch (err) {
     return {
@@ -173,6 +194,7 @@ export async function runExperiment(
       status: "error",
       retrievalMetrics: { precisionAtK: 0, recallAtK: 0, mrr: 0 },
       judgeScores: null,
+      perCase: null,
       errorMessage: err instanceof Error ? err.message : String(err),
     };
   }

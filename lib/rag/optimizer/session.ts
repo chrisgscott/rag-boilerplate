@@ -1,7 +1,9 @@
 import type { ExperimentConfig, CompositeWeights } from "./config";
-import { createDefaultConfig } from "./config";
+import { createDefaultConfig, computeCompositeScore } from "./config";
 import type { ExperimentInput, ExperimentResult, ExperimentTestCase, RetrievalMetricsResult, JudgeScoresResult } from "./experiment";
 import type { OptimizationRunInsert, OptimizationRunComplete, ExperimentInsert, BestConfigUpsert, OptimizationRunRow } from "./results-log";
+import type { AgentContext, ExperimentProposal, CumulativeInsights, PerCaseMetric, SessionHistoryEntry } from "./agent";
+import type { CorpusFingerprint } from "./corpus";
 
 /**
  * Configuration for an optimization session.
@@ -16,8 +18,8 @@ export type SessionConfig = {
    *  maxExperiments is the primary budget cap for now. This field is declared for
    *  forward compatibility so callers set it from day one. */
   maxBudgetUsd: number;
-  /** Ordered list of config overrides to try */
-  experiments: Partial<ExperimentConfig>[];
+  /** Ordered list of config overrides to try. When empty/absent, agent-driven mode is used. */
+  experiments?: Partial<ExperimentConfig>[];
   /** Optional starting config (defaults to createDefaultConfig()) */
   baselineConfig?: ExperimentConfig;
 };
@@ -60,11 +62,55 @@ export type SessionDeps = {
   upsertBestConfig: (input: BestConfigUpsert) => Promise<void>;
   getTestCases: (testSetId: string) => Promise<ExperimentTestCase[]>;
   runBaseline: (config: ExperimentConfig, testCases: ExperimentTestCase[], organizationId: string, weights: CompositeWeights) => Promise<BaselineResult>;
+  /** Agent-driven mode: propose next experiment based on context */
+  proposeExperiment?: (context: AgentContext) => Promise<ExperimentProposal>;
+  /** Agent-driven mode: get corpus fingerprint for the organization */
+  getCorpusFingerprint?: (organizationId: string) => Promise<CorpusFingerprint>;
+  /** Agent-driven mode: get cumulative insights from previous sessions */
+  getInsights?: (organizationId: string) => Promise<CumulativeInsights | null>;
+  /** Agent-driven mode: persist updated cumulative insights */
+  upsertInsights?: (organizationId: string, insights: CumulativeInsights) => Promise<void>;
+  /** Agent-driven mode: generate a session report */
+  generateReport?: (params: any) => string;
 };
+
+/**
+ * Build per-case metrics from experiment result for agent context.
+ */
+function buildPerCaseMetrics(
+  perCase: NonNullable<ExperimentResult["perCase"]>,
+  weights: CompositeWeights
+): PerCaseMetric[] {
+  return perCase.map((pc) => ({
+    testCaseId: pc.testCaseId,
+    question: pc.question,
+    compositeScore: computeCompositeScore(
+      {
+        precisionAtK: pc.precisionAtK,
+        recallAtK: pc.recallAtK,
+        mrr: pc.mrr,
+        faithfulness: pc.faithfulness ?? 0,
+        relevance: pc.relevance ?? 0,
+        completeness: pc.completeness ?? 0,
+      },
+      weights
+    ),
+    precisionAtK: pc.precisionAtK,
+    recallAtK: pc.recallAtK,
+    mrr: pc.mrr,
+    faithfulness: pc.faithfulness,
+    relevance: pc.relevance,
+    completeness: pc.completeness,
+  }));
+}
 
 /**
  * Run an optimization session: establish baseline, iterate experiments,
  * track best config, log everything.
+ *
+ * Two modes:
+ * - Static mode: config.experiments has items — iterate them in order.
+ * - Agent-driven mode: config.experiments is empty/absent — use LLM agent OODA loop.
  */
 export async function runSession(
   config: SessionConfig,
@@ -100,61 +146,195 @@ export async function runSession(
   let keptCount = 0;
   let discardedCount = 0;
   let errorCount = 0;
+  let sessionReport: string | undefined;
+
+  const useAgentMode = !config.experiments || config.experiments.length === 0;
 
   try {
-    // 4. Iterate experiments up to maxExperiments
-    const maxToRun = Math.min(config.experiments.length, config.maxExperiments);
+    if (useAgentMode && deps.proposeExperiment) {
+      // --- Agent-driven OODA loop ---
+      const fingerprint = await deps.getCorpusFingerprint!(config.organizationId);
+      const existingInsights =
+        (await deps.getInsights?.(config.organizationId)) ?? null;
+      let insights = existingInsights;
+      const history: SessionHistoryEntry[] = [];
+      let lastPerCaseMetrics: PerCaseMetric[] = [];
 
-    for (let i = 0; i < maxToRun; i++) {
-      const overrides = config.experiments[i];
+      let experimentIndex = 0;
+      while (experimentIndex < config.maxExperiments) {
+        const agentContext: AgentContext = {
+          currentConfig,
+          perCaseMetrics: [...lastPerCaseMetrics],
+          sessionHistory: [...history],
+          cumulativeInsights: insights,
+          corpusFingerprint: fingerprint,
+        };
 
-      const experimentInput: ExperimentInput = {
-        baselineConfig: currentConfig,
-        baselineScore: currentScore,
-        configOverrides: overrides,
-        compositeWeights: config.compositeWeights,
-        organizationId: config.organizationId,
-        runId: run.id,
-        experimentIndex: i,
-        testCases,
-      };
+        const proposal = await deps.proposeExperiment(agentContext);
 
-      // Run experiment — deps.runExperiment is pre-bound with its own evalRunner
-      const result = await deps.runExperiment(experimentInput);
+        if (proposal.stop) break;
 
-      experimentsRun++;
+        const overrides = {
+          [proposal.knob!]: proposal.value!,
+        } as Partial<ExperimentConfig>;
 
-      // Log experiment
-      await deps.logExperiment({
-        runId: run.id,
-        organizationId: config.organizationId,
-        experimentIndex: i,
-        config: result.experimentConfig,
-        configDelta: result.configDelta,
-        compositeScore: result.compositeScore,
-        delta: result.delta,
-        status: result.status,
-        retrievalMetrics: result.retrievalMetrics,
-        judgeScores: result.judgeScores,
-        reasoning: null,
-        hypothesis: null,
-        corpusFingerprint: null,
-        errorMessage: result.errorMessage,
-      });
+        const experimentInput: ExperimentInput = {
+          baselineConfig: currentConfig,
+          baselineScore: currentScore,
+          configOverrides: overrides,
+          compositeWeights: config.compositeWeights,
+          organizationId: config.organizationId,
+          runId: run.id,
+          experimentIndex,
+          testCases,
+        };
 
-      // Track outcomes
-      if (result.status === "kept") {
-        keptCount++;
-        currentConfig = { ...result.experimentConfig };
-        currentScore = result.compositeScore;
-        if (result.compositeScore > bestScore) {
-          bestConfig = { ...result.experimentConfig };
-          bestScore = result.compositeScore;
+        const result = await deps.runExperiment(experimentInput);
+        experimentsRun++;
+
+        // Log experiment with agent reasoning
+        await deps.logExperiment({
+          runId: run.id,
+          organizationId: config.organizationId,
+          experimentIndex,
+          config: result.experimentConfig,
+          configDelta: result.configDelta,
+          compositeScore: result.compositeScore,
+          delta: result.delta,
+          status: result.status,
+          retrievalMetrics: result.retrievalMetrics,
+          judgeScores: result.judgeScores,
+          reasoning: proposal.reasoning,
+          hypothesis: proposal.hypothesis,
+          corpusFingerprint: fingerprint,
+          errorMessage: result.errorMessage,
+        });
+
+        // Build history entry for agent
+        history.push({
+          experimentIndex,
+          knob: proposal.knob!,
+          valueTested: proposal.value! as number | boolean,
+          delta: result.delta,
+          status: result.status,
+          reasoning: proposal.reasoning,
+        });
+
+        // Track outcomes
+        if (result.status === "kept") {
+          keptCount++;
+          currentConfig = { ...result.experimentConfig };
+          currentScore = result.compositeScore;
+          if (result.compositeScore > bestScore) {
+            bestConfig = { ...result.experimentConfig };
+            bestScore = result.compositeScore;
+          }
+          // Update per-case metrics from kept experiment
+          if (result.perCase) {
+            lastPerCaseMetrics = buildPerCaseMetrics(
+              result.perCase,
+              config.compositeWeights
+            );
+          }
+        } else if (result.status === "error") {
+          errorCount++;
+        } else {
+          discardedCount++;
+          // Keep previous per-case metrics (config reverted)
         }
-      } else if (result.status === "error") {
-        errorCount++;
-      } else {
-        discardedCount++;
+
+        experimentIndex++;
+      }
+
+      // Generate report
+      if (deps.generateReport) {
+        sessionReport = deps.generateReport({
+          baselineConfig: baseline,
+          finalConfig: bestConfig,
+          baselineScore: baselineResult.compositeScore,
+          bestScore,
+          experiments: history.map((h) => ({
+            index: h.experimentIndex,
+            knob: h.knob,
+            valueTested: h.valueTested,
+            delta: h.delta,
+            status: h.status,
+            reasoning: h.reasoning,
+          })),
+          corpusFingerprint: fingerprint,
+        });
+      }
+
+      // Update insights
+      if (deps.upsertInsights && history.length > 0) {
+        const { buildInsightsFromHistory } = await import("./report");
+        const updatedInsights = buildInsightsFromHistory(
+          history.map((h) => ({
+            knob: h.knob,
+            delta: h.delta,
+            status: h.status,
+            corpusFingerprint: fingerprint,
+          })),
+          insights
+        );
+        await deps.upsertInsights(config.organizationId, updatedInsights);
+      }
+    } else {
+      // --- Static iteration mode ---
+      const experiments = config.experiments ?? [];
+      const maxToRun = Math.min(experiments.length, config.maxExperiments);
+
+      for (let i = 0; i < maxToRun; i++) {
+        const overrides = experiments[i];
+
+        const experimentInput: ExperimentInput = {
+          baselineConfig: currentConfig,
+          baselineScore: currentScore,
+          configOverrides: overrides,
+          compositeWeights: config.compositeWeights,
+          organizationId: config.organizationId,
+          runId: run.id,
+          experimentIndex: i,
+          testCases,
+        };
+
+        // Run experiment — deps.runExperiment is pre-bound with its own evalRunner
+        const result = await deps.runExperiment(experimentInput);
+
+        experimentsRun++;
+
+        // Log experiment
+        await deps.logExperiment({
+          runId: run.id,
+          organizationId: config.organizationId,
+          experimentIndex: i,
+          config: result.experimentConfig,
+          configDelta: result.configDelta,
+          compositeScore: result.compositeScore,
+          delta: result.delta,
+          status: result.status,
+          retrievalMetrics: result.retrievalMetrics,
+          judgeScores: result.judgeScores,
+          reasoning: null,
+          hypothesis: null,
+          corpusFingerprint: null,
+          errorMessage: result.errorMessage,
+        });
+
+        // Track outcomes
+        if (result.status === "kept") {
+          keptCount++;
+          currentConfig = { ...result.experimentConfig };
+          currentScore = result.compositeScore;
+          if (result.compositeScore > bestScore) {
+            bestConfig = { ...result.experimentConfig };
+            bestScore = result.compositeScore;
+          }
+        } else if (result.status === "error") {
+          errorCount++;
+        } else {
+          discardedCount++;
+        }
       }
     }
 
@@ -176,6 +356,7 @@ export async function runSession(
       bestConfig: bestScore > baselineResult.compositeScore ? bestConfig : null,
       bestScore: bestScore > baselineResult.compositeScore ? bestScore : null,
       experimentsRun,
+      sessionReport,
     });
 
     return {
