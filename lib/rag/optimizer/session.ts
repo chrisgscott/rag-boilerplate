@@ -137,6 +137,8 @@ export async function runSession(
         retrievalMetrics: result.retrievalMetrics,
         judgeScores: result.judgeScores,
         reasoning: null,
+        hypothesis: null,
+        corpusFingerprint: null,
         errorMessage: result.errorMessage,
       });
 

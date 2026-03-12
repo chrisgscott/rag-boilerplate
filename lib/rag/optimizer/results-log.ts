@@ -18,6 +18,7 @@ export type OptimizationRunComplete = {
   bestScore: number | null;
   experimentsRun: number;
   errorMessage?: string;
+  sessionReport?: string;
 };
 
 export type ExperimentInsert = {
@@ -32,6 +33,8 @@ export type ExperimentInsert = {
   retrievalMetrics: Record<string, number> | null;
   judgeScores: Record<string, number> | null;
   reasoning: string | null;
+  hypothesis: string | null;
+  corpusFingerprint: Record<string, unknown> | null;
   errorMessage?: string;
 };
 
@@ -64,6 +67,7 @@ export type OptimizationRunRow = {
   error_message: string | null;
   started_at: string;
   completed_at: string | null;
+  session_report: string | null;
 };
 
 export type OptimizationExperimentRow = {
@@ -79,6 +83,8 @@ export type OptimizationExperimentRow = {
   retrieval_metrics: Record<string, number> | null;
   judge_scores: Record<string, number> | null;
   reasoning: string | null;
+  hypothesis: string | null;
+  corpus_fingerprint: Record<string, unknown> | null;
   error_message: string | null;
   created_at: string;
 };
@@ -135,6 +141,7 @@ export async function completeOptimizationRun(
     experiments_run: input.experimentsRun,
     completed_at: new Date().toISOString(),
     error_message: input.errorMessage ?? null,
+    session_report: input.sessionReport ?? null,
   };
 
   const { error } = await supabase
@@ -166,6 +173,8 @@ export async function logExperiment(
     retrieval_metrics: input.retrievalMetrics,
     judge_scores: input.judgeScores,
     reasoning: input.reasoning,
+    hypothesis: input.hypothesis ?? null,
+    corpus_fingerprint: input.corpusFingerprint ?? null,
     error_message: input.errorMessage ?? null,
   };
 
@@ -253,4 +262,54 @@ export async function getBestConfig(
   }
 
   return data as OptimizationConfigRow | null;
+}
+
+// --- Insights CRUD ---
+
+export type InsightsRow = {
+  organization_id: string;
+  insights: Record<string, unknown>;
+  updated_at: string;
+};
+
+/**
+ * Get cumulative optimization insights for an organization. Returns null if none exist.
+ */
+export async function getInsights(
+  supabase: SupabaseClient,
+  organizationId: string
+): Promise<InsightsRow | null> {
+  const { data, error } = await supabase
+    .from("optimization_insights")
+    .select()
+    .eq("organization_id", organizationId)
+    .single();
+  if (error) {
+    if (error.code === "PGRST116") return null;
+    throw new Error(error.message);
+  }
+  return data as InsightsRow;
+}
+
+/**
+ * Upsert cumulative optimization insights for an organization.
+ */
+export async function upsertInsights(
+  supabase: SupabaseClient,
+  organizationId: string,
+  insights: Record<string, unknown>
+): Promise<void> {
+  const { error } = await supabase
+    .from("optimization_insights")
+    .upsert(
+      {
+        organization_id: organizationId,
+        insights,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "organization_id" }
+    )
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
 }

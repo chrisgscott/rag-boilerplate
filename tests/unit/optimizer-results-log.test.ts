@@ -200,6 +200,8 @@ describe("results-log", () => {
         retrieval_metrics: { precisionAtK: 0.8, recallAtK: 0.7, mrr: 0.9 },
         judge_scores: null,
         reasoning: "Increasing topK improved recall",
+        hypothesis: null,
+        corpus_fingerprint: null,
       };
 
       const supabase = createMockSupabase({
@@ -218,6 +220,8 @@ describe("results-log", () => {
         retrievalMetrics: { precisionAtK: 0.8, recallAtK: 0.7, mrr: 0.9 },
         judgeScores: null,
         reasoning: "Increasing topK improved recall",
+        hypothesis: null,
+        corpusFingerprint: null,
       };
 
       const result = await logExperiment(supabase, input);

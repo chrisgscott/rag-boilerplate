@@ -35,6 +35,7 @@ const mockRun: OptimizationRunRow = {
   error_message: null,
   started_at: new Date().toISOString(),
   completed_at: null,
+  session_report: null,
 };
 
 const testCases = [
