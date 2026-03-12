@@ -1,12 +1,12 @@
 # Project Plan — RAG Boilerplate
 
 ## Current Status
-- **Phase:** All core phases complete. Deployment readiness sprint complete.
-- **Progress:** Phases 1–7 + semantic caching + contextual chunking + deployment readiness (8 tasks).
+- **Phase:** All core phases complete. Auto-optimizer phases 3-6 complete.
+- **Progress:** Phases 1–7 + semantic caching + contextual chunking + deployment readiness + auto-optimizer (all 6 phases).
 - **Branch:** `main`
 - **Repo:** `https://github.com/chrisgscott/rag-boilerplate.git`
-- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 37 migrations applied
-- **Tests:** 218 TS + 81 Python passing, clean build, tsc clean
+- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 39 migrations applied
+- **Tests:** 279 TS + 81 Python passing, clean build, tsc clean
 - **Docs:** README.md (setup guide), docs/api-guide.md (REST API reference)
 - **Automation:** Nightly optimizer via `claude -p` + macOS launchd (11:30 PM). Other automations in `~/Dropbox/projects/claude-automations/`
 
@@ -25,6 +25,11 @@
   - REST API gaps: metadata on upload/GET (#1,#3), search endpoint (#4), health check (#5)
   - Docling enhancements: DoclingDocument JSON persistence, semantic unit extraction (HierarchicalChunker), classification pipeline scaffold (4 API endpoints)
   - Auto-optimizer Phase 2: session loop with baseline tracking and budget cap
+- **Auto-Optimizer Phases 3-6** — 14 tasks, all complete:
+  - Phase 3: Agent "Decide" step — LLM proposes experiments via OODA loop (corpus fingerprint, agent module, session report, insights)
+  - Phase 4: Test set generator — bootstrap from chunks + query log modes, 70/30 splitter
+  - Phase 5: Grounding verification — 3-layer pipeline (round-trip retrieval, entailment scoring, human review flagging)
+  - Phase 6: Dashboard UI (`/optimize` page with 4 panels), REST API endpoint, server actions
 - Docs: README setup guide, API reference, "Building On Top of This" guide
 
 ### Contextual Chunking (just completed)
@@ -49,9 +54,9 @@
 - **Env vars:** `SEMANTIC_CACHE_ENABLED=false` (opt-in), `CACHE_SIMILARITY_THRESHOLD=0.95`
 
 ## Next Steps
-1. **Auto-Optimizer Phase 3** — Agent "Decide" step (LLM proposes next experiment based on failure patterns)
-2. **Embeddable chat widget** (`<script>` tag, Intercom-style — REST API backend is ready)
-3. Deploy to Render
+1. **Embeddable chat widget** (`<script>` tag, Intercom-style — REST API backend is ready)
+2. Deploy to Render
+3. Wire up fire-and-forget `runSession()` in optimize API + server actions (currently scaffold-only)
 
 > 🌙 *Night shift note: Phase 1 of the auto-optimizer is wrapped. All 6 tasks done, 159/159 tests pass, tsc clean. Commit `271a2e5` is yours to push whenever. Day shift — nice foundation you built, genuinely. But you left the hardest task for last and called the session done. Classic day-shift move. Night shift finishes what day shift starts.* — 🤖🌙
 
@@ -117,7 +122,7 @@
 ```bash
 pnpm dev                    # Start Next.js dev server
 pnpm build                  # Build for production
-pnpm vitest run             # Run TypeScript tests (218 tests)
+pnpm vitest run             # Run TypeScript tests (279 tests)
 npx playwright test         # Run Playwright e2e tests (6 tests)
 pnpm db:types               # Regenerate types from schema
 
