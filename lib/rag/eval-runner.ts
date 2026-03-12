@@ -40,16 +40,23 @@ type TestCase = {
   expected_source_ids: string[] | null;
 };
 
+export type EvalOptions = {
+  /** When true, skip LLM answer generation and judging — only compute retrieval metrics. */
+  retrievalOnly?: boolean;
+};
+
 /**
  * Run evaluation for a set of test cases.
  * Phase 1: Retrieval metrics for all cases.
  * Phase 2: Answer quality (LLM judge) for cases that have expected answers.
+ *          Skipped when options.retrievalOnly is true.
  */
 export async function runEvaluation(
   supabase: SupabaseClient,
   testCases: TestCase[],
   organizationId: string,
-  config: EvalConfig
+  config: EvalConfig,
+  options?: EvalOptions
 ): Promise<EvalRunResult> {
   const perCase: PerCaseResult[] = [];
   const judgeScoresList: JudgeScores[] = [];
@@ -83,8 +90,8 @@ export async function runEvaluation(
       mrr,
     };
 
-    // Phase 2: Answer quality (only if expected answer exists)
-    if (tc.expected_answer && searchResponse.results.length > 0) {
+    // Phase 2: Answer quality (only if expected answer exists and not in retrievalOnly mode)
+    if (!options?.retrievalOnly && tc.expected_answer && searchResponse.results.length > 0) {
       const systemPrompt = buildSystemPrompt(searchResponse.results);
       const provider = getLLMProvider();
       const modelId = config.model || getModelId();
