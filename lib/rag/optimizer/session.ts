@@ -4,6 +4,7 @@ import type { ExperimentInput, ExperimentResult, ExperimentTestCase, RetrievalMe
 import type { OptimizationRunInsert, OptimizationRunComplete, ExperimentInsert, BestConfigUpsert, OptimizationRunRow } from "./results-log";
 import type { AgentContext, ExperimentProposal, CumulativeInsights, PerCaseMetric, SessionHistoryEntry } from "./agent";
 import type { CorpusFingerprint } from "./corpus";
+import { buildInsightsFromHistory } from "./report";
 
 /**
  * Configuration for an optimization session.
@@ -267,7 +268,6 @@ export async function runSession(
 
       // Update insights
       if (deps.upsertInsights && history.length > 0) {
-        const { buildInsightsFromHistory } = await import("./report");
         const updatedInsights = buildInsightsFromHistory(
           history.map((h) => ({
             knob: h.knob,

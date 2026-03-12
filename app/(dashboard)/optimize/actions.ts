@@ -91,20 +91,36 @@ export async function getOptimizePageData(): Promise<OptimizePageData> {
     .eq("organization_id", organizationId)
     .maybeSingle();
 
-  // Flagged test cases
-  const { data: flaggedCases, count: flaggedCount } = await admin
-    .from("eval_test_cases")
-    .select("id, question, expected_answer, grounding_score", { count: "exact" })
-    .eq("status", "flagged")
-    .limit(20);
+  // Flagged test cases — scoped to org via test_set_id
+  // First get test set IDs for this org
+  const { data: testSets } = await admin
+    .from("eval_test_sets")
+    .select("id")
+    .eq("organization_id", organizationId);
+
+  const testSetIds = (testSets ?? []).map((ts: { id: string }) => ts.id);
+
+  let flaggedCases: OptimizePageData["flaggedTestCases"] = [];
+  let flaggedCount = 0;
+
+  if (testSetIds.length > 0) {
+    const { data, count } = await admin
+      .from("eval_test_cases")
+      .select("id, question, expected_answer, grounding_score", { count: "exact" })
+      .in("test_set_id", testSetIds)
+      .eq("status", "flagged")
+      .limit(20);
+    flaggedCases = (data ?? []) as OptimizePageData["flaggedTestCases"];
+    flaggedCount = count ?? 0;
+  }
 
   return {
     bestConfig: (bestConfig as OptimizationConfigRow) ?? null,
     latestSessions: (latestSessions ?? []) as OptimizationRunRow[],
     experiments,
     insights: insightsRow ? (insightsRow.insights as CumulativeInsights) : null,
-    flaggedTestCases: (flaggedCases ?? []) as OptimizePageData["flaggedTestCases"],
-    flaggedCount: flaggedCount ?? 0,
+    flaggedTestCases: flaggedCases,
+    flaggedCount,
   };
 }
 
@@ -150,8 +166,26 @@ export async function reviewTestCase(
   testCaseId: string,
   decision: "validated" | "rejected"
 ): Promise<void> {
-  await getCurrentOrg(); // Auth check
+  const { organizationId } = await getCurrentOrg();
   const admin = createAdminClient();
+
+  // Verify test case belongs to user's org via test_set_id
+  const { data: testCase } = await admin
+    .from("eval_test_cases")
+    .select("id, test_set_id")
+    .eq("id", testCaseId)
+    .single();
+
+  if (!testCase) throw new Error("Test case not found");
+
+  const { data: testSet } = await admin
+    .from("eval_test_sets")
+    .select("id")
+    .eq("id", testCase.test_set_id)
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+
+  if (!testSet) throw new Error("Test case not found");
 
   const { error } = await admin
     .from("eval_test_cases")
