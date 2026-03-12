@@ -51,6 +51,7 @@ class ParseResult:
     sections: list[Section]
     page_count: int = 1
     docling_doc: object = None  # Raw Docling document for VLM extraction
+    docling_json: dict | None = None  # Full DoclingDocument JSON for re-processing
 
 
 SUPPORTED_MIME_TYPES = {
@@ -83,7 +84,14 @@ def parse_document(file_path: Path, mime_type: str) -> ParseResult:
     # Get page count
     page_count = len(doc.pages) if hasattr(doc, "pages") and doc.pages else 1
 
-    return ParseResult(text=text, sections=sections, page_count=page_count, docling_doc=doc)
+    # Export full DoclingDocument as JSON dict for persistence
+    docling_json = None
+    try:
+        docling_json = doc.export_to_dict()
+    except Exception as e:
+        logger.warning(f"Failed to export DoclingDocument to dict: {e}")
+
+    return ParseResult(text=text, sections=sections, page_count=page_count, docling_doc=doc, docling_json=docling_json)
 
 
 def _extract_sections(doc) -> list[Section]:

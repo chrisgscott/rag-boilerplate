@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     contextual_model: str = "gpt-4o-mini"
     contextual_concurrency: int = 5
 
+    # Docling document persistence (stores full JSON for re-processing)
+    persist_docling_doc: bool = True
+
     # VLM (optional — enables visual extraction with OpenAI vision models)
     vlm_enabled: bool = False
     vlm_model: str = "gpt-4o-mini"

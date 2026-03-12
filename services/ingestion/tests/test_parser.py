@@ -64,6 +64,15 @@ class TestPageTracking:
             assert isinstance(section.pages, set)
 
 
+class TestDoclingJson:
+    def test_parse_result_includes_docling_json(self, tmp_path):
+        """ParseResult should include docling_json dict when Docling parses successfully."""
+        from src.parser import ParseResult
+        import dataclasses
+        fields = {f.name for f in dataclasses.fields(ParseResult)}
+        assert "docling_json" in fields
+
+
 class TestUnsupportedFormat:
     def test_raises_on_unsupported_mime_type(self):
         with pytest.raises(ValueError, match="Unsupported"):

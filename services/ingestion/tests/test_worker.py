@@ -408,6 +408,47 @@ class TestUpsertChunksContext:
         assert insert_call[0]["context"] is None
 
 
+class TestDoclingJsonPersistence:
+    @patch("src.worker.settings")
+    @patch("src.worker._get_supabase")
+    async def test_docling_json_persisted_when_enabled(self, mock_supabase, mock_settings):
+        """When persist_docling_doc is True, worker stores docling_json on document."""
+        mock_settings.persist_docling_doc = True
+
+        supabase = MagicMock()
+        mock_supabase.return_value = supabase
+        mock_table = MagicMock()
+        mock_table.update.return_value.eq.return_value.execute.return_value = MagicMock()
+        supabase.table.return_value = mock_table
+
+        from src.worker import persist_docling_json
+        docling_json = {"body": {"children": [{"text": "test"}]}}
+        await persist_docling_json("doc-123", docling_json)
+
+        supabase.table.assert_called_with("documents")
+        mock_table.update.assert_called_once()
+        update_arg = mock_table.update.call_args[0][0]
+        assert update_arg["docling_doc"] == docling_json
+
+    @patch("src.worker.settings")
+    @patch("src.worker._get_supabase")
+    async def test_docling_json_skipped_when_disabled(self, mock_supabase, mock_settings):
+        """When persist_docling_doc is False, worker does not store docling_json."""
+        mock_settings.persist_docling_doc = False
+        from src.worker import persist_docling_json
+        await persist_docling_json("doc-123", {"body": "test"})
+        mock_supabase.assert_not_called()
+
+    @patch("src.worker.settings")
+    @patch("src.worker._get_supabase")
+    async def test_docling_json_skipped_when_none(self, mock_supabase, mock_settings):
+        """When docling_json is None, worker does not store it."""
+        mock_settings.persist_docling_doc = True
+        from src.worker import persist_docling_json
+        await persist_docling_json("doc-123", None)
+        mock_supabase.assert_not_called()
+
+
 class TestGetEmbeddingText:
     def test_prepends_context_when_present(self):
         from src.worker import get_embedding_text

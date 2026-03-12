@@ -121,6 +121,18 @@ def bump_cache_version(organization_id: str):
         conn.close()
 
 
+async def persist_docling_json(document_id: str, docling_json: dict | None) -> None:
+    """Store the full DoclingDocument JSON on the document record."""
+    if not settings.persist_docling_doc or docling_json is None:
+        return
+
+    supabase = _get_supabase()
+    supabase.table("documents").update(
+        {"docling_doc": docling_json}
+    ).eq("id", document_id).execute()
+    logger.info(f"Persisted DoclingDocument JSON for document {document_id}")
+
+
 async def process_message(message: dict) -> None:
     """Process a single ingestion job message."""
     document_id = message["document_id"]
@@ -149,6 +161,9 @@ async def process_message(message: dict) -> None:
         try:
             # Parse with Docling
             parse_result = parse_document(tmp_path, doc["mime_type"])
+
+            # Persist DoclingDocument JSON for re-processing
+            await persist_docling_json(document_id, parse_result.docling_json)
 
             # VLM visual extraction (optional — runs when VLM_ENABLED=true)
             if settings.vlm_enabled and parse_result.docling_doc:
