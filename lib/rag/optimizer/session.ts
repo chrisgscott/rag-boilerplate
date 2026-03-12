@@ -23,6 +23,8 @@ export type SessionConfig = {
   experiments?: Partial<ExperimentConfig>[];
   /** Optional starting config (defaults to createDefaultConfig()) */
   baselineConfig?: ExperimentConfig;
+  /** Pre-created run ID. When set, runSession updates this record instead of creating a new one. */
+  existingRunId?: string;
 };
 
 /**
@@ -58,6 +60,8 @@ export type SessionDeps = {
   /** Run a single experiment. The caller is responsible for binding the eval runner. */
   runExperiment: (input: ExperimentInput) => Promise<ExperimentResult>;
   createRun: (input: OptimizationRunInsert) => Promise<OptimizationRunRow>;
+  /** Update an existing pending run with baseline data and set status to "running". */
+  activateRun: (runId: string, input: OptimizationRunInsert) => Promise<void>;
   completeRun: (input: OptimizationRunComplete) => Promise<void>;
   logExperiment: (input: ExperimentInsert) => Promise<any>;
   upsertBestConfig: (input: BestConfigUpsert) => Promise<void>;
@@ -130,14 +134,23 @@ export async function runSession(
     config.compositeWeights
   );
 
-  // 3. Create optimization run
-  const run = await deps.createRun({
+  // 3. Create or activate optimization run
+  let run: OptimizationRunRow;
+  const runInsert: OptimizationRunInsert = {
     organizationId: config.organizationId,
     testSetId: config.testSetId,
     baselineConfig: baseline,
     baselineScore: baselineResult.compositeScore,
     compositeWeights: config.compositeWeights,
-  });
+  };
+
+  if (config.existingRunId) {
+    // Update the pre-created "pending" record with baseline data
+    await deps.activateRun(config.existingRunId, runInsert);
+    run = { id: config.existingRunId } as OptimizationRunRow;
+  } else {
+    run = await deps.createRun(runInsert);
+  }
 
   let currentConfig = { ...baseline };
   let currentScore = baselineResult.compositeScore;

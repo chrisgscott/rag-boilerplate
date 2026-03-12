@@ -92,6 +92,7 @@ function makeDeps(overrides: Partial<SessionDeps> = {}): SessionDeps {
   return {
     runExperiment: vi.fn().mockResolvedValue(makeExperimentResult()),
     createRun: vi.fn().mockResolvedValue(mockRun),
+    activateRun: vi.fn().mockResolvedValue(undefined),
     completeRun: vi.fn().mockResolvedValue(undefined),
     logExperiment: vi.fn().mockResolvedValue({}),
     upsertBestConfig: vi.fn().mockResolvedValue(undefined),

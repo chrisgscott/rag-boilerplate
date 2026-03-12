@@ -128,6 +128,29 @@ export async function createOptimizationRun(
 }
 
 /**
+ * Activate a pending run — update with baseline data and set status to "running".
+ */
+export async function activateOptimizationRun(
+  supabase: SupabaseClient,
+  runId: string,
+  input: OptimizationRunInsert
+): Promise<void> {
+  const { error } = await supabase
+    .from("optimization_runs")
+    .update({
+      status: "running",
+      baseline_config: input.baselineConfig,
+      baseline_score: input.baselineScore,
+      composite_weights: input.compositeWeights,
+    })
+    .eq("id", runId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+/**
  * Complete an optimization run — update status, best config/score, experiment count.
  */
 export async function completeOptimizationRun(

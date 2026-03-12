@@ -1,5 +1,6 @@
 "use client";
 
+import { useTransition } from "react";
 import {
   Card,
   CardContent,
@@ -8,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -16,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cancelOptimizationSession } from "../actions";
 import type {
   OptimizationRunRow,
   OptimizationExperimentRow,
@@ -55,17 +58,69 @@ function ExperimentStatusBadge({ status }: { status: ExperimentStatus }) {
 }
 
 function formatDelta(delta: number): { text: string; className: string } {
-  const sign = delta >= 0 ? "+" : "";
+  const pts = delta * 100;
+  const sign = pts >= 0 ? "+" : "";
   return {
-    text: `${sign}${delta.toFixed(4)}`,
-    className: delta >= 0 ? "text-green-600 font-medium" : "text-red-600",
+    text: `${sign}${pts.toFixed(1)}`,
+    className: pts >= 0 ? "text-green-600 font-medium" : "text-red-600",
   };
+}
+
+const CONFIG_LABELS: Record<string, string> = {
+  topK: "Chunks returned",
+  model: "LLM model",
+  rerankEnabled: "Reranking",
+  fullTextWeight: "Keyword weight",
+  semanticWeight: "Semantic weight",
+  similarityThreshold: "Min similarity",
+  rerankCandidateMultiplier: "Rerank candidates",
+};
+
+function formatValue(key: string, value: unknown): string {
+  if (typeof value === "boolean") return value ? "on" : "off";
+  if (key === "rerankCandidateMultiplier") return `${value}x`;
+  return String(value);
 }
 
 function formatConfigDelta(delta: Record<string, unknown>): string {
   const entries = Object.entries(delta);
   if (entries.length === 0) return "—";
-  return entries.map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join(", ");
+  return entries
+    .map(([key, v]) => {
+      const label = CONFIG_LABELS[key] ?? key;
+      const change = v as { before?: unknown; after?: unknown };
+      if (change && typeof change === "object" && "before" in change && "after" in change) {
+        return `${label}: ${formatValue(key, change.before)} → ${formatValue(key, change.after)}`;
+      }
+      return `${label}: ${JSON.stringify(v)}`;
+    })
+    .join(", ");
+}
+
+function CancelButton({ runId }: { runId: string }) {
+  const [isPending, startTransition] = useTransition();
+
+  function handleCancel() {
+    startTransition(async () => {
+      try {
+        await cancelOptimizationSession(runId);
+      } catch (err) {
+        console.error("Failed to cancel session:", err);
+      }
+    });
+  }
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={handleCancel}
+      disabled={isPending}
+      className="text-destructive hover:text-destructive"
+    >
+      {isPending ? "Cancelling..." : "Cancel"}
+    </Button>
+  );
 }
 
 export function ExperimentHistoryPanel({ latestSessions, experiments }: Props) {
@@ -92,6 +147,7 @@ export function ExperimentHistoryPanel({ latestSessions, experiments }: Props) {
                   <TableHead>Experiments</TableHead>
                   <TableHead>Baseline</TableHead>
                   <TableHead>Best</TableHead>
+                  <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -106,13 +162,19 @@ export function ExperimentHistoryPanel({ latestSessions, experiments }: Props) {
                     <TableCell>{session.experiments_run}</TableCell>
                     <TableCell>
                       {session.baseline_score !== null
-                        ? session.baseline_score.toFixed(4)
+                        ? Math.round(session.baseline_score * 100)
                         : "—"}
                     </TableCell>
                     <TableCell>
                       {session.best_score !== null
-                        ? session.best_score.toFixed(4)
+                        ? Math.round(session.best_score * 100)
                         : "—"}
+                    </TableCell>
+                    <TableCell>
+                      {(session.status === "running" ||
+                        session.status === "pending") && (
+                        <CancelButton runId={session.id} />
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -141,7 +203,7 @@ export function ExperimentHistoryPanel({ latestSessions, experiments }: Props) {
                           <TableCell className="text-sm">
                             {exp.experiment_index + 1}
                           </TableCell>
-                          <TableCell className="text-sm font-mono">
+                          <TableCell className="text-sm">
                             {formatConfigDelta(exp.config_delta)}
                           </TableCell>
                           <TableCell className={`text-sm ${className}`}>

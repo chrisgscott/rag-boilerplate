@@ -51,7 +51,7 @@ export async function generateTestCases(
       results.push({
         question: qa.question,
         expectedAnswer: qa.expectedAnswer,
-        expectedSourceIds: [chunk.id],
+        expectedSourceIds: [chunk.documentId],
         sourceChunkId: chunk.id,
         split: assignSplit(i, chunks.length),
         generationMode: "bootstrap",
@@ -75,7 +75,7 @@ export async function generateTestCases(
       results.push({
         question: qa.question,
         expectedAnswer: qa.expectedAnswer,
-        expectedSourceIds: [topChunk.id],
+        expectedSourceIds: [log.documentId],
         sourceChunkId: topChunk.id,
         split: assignSplit(i, logs.length),
         generationMode: "query_log",
