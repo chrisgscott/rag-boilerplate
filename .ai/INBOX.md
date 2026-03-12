@@ -19,6 +19,7 @@ Triage weekly or at phase boundaries.
 - [ ] LegalTech vertical edition (second vertical after PropTech)
 - [ ] InsurTech vertical edition
 - [ ] Course/educational content layer
+- [ ] Ingestion-side optimization — auto-optimizer currently only tunes search-time params (topK, weights, reranking). Ingestion params (chunk size, overlap ratio, contextual chunking on/off, embedding model) also affect retrieval quality but require re-ingestion to test. Design an ingestion experiment loop that can re-ingest + re-eval to find optimal ingestion config.
 
 ## Completed
 
@@ -37,6 +38,7 @@ Triage weekly or at phase boundaries.
 | Item | Reason |
 |------|--------|
 | Supabase Realtime for status | Polling (3s) works fine — revisit if UX feedback warrants it |
+| Temporal / freshness-aware retrieval (Graphiti) | Deployment-level concern, not boilerplate scope — adds Neo4j dependency, query-type classifier, and reconciliation logic for a use case (agents writing to shared KB) that's specific to certain deployments. Boilerplate already provides the hooks (created_at, metadata JSONB). See original write-up in git history. |
 
 ---
 *Review at the end of each phase*
