@@ -43,7 +43,7 @@ cd "$PROJECT_DIR"
 
 /opt/homebrew/bin/claude -p "$PROMPT" \
   --permission-mode auto \
-  --max-budget-usd 5.00 \
+  --max-budget-usd 20.00 \
   --output-format json \
   >> "$LOG_FILE" 2>&1
 

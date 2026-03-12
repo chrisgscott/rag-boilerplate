@@ -3,11 +3,12 @@
 ## Current Status
 - **Phase:** All core phases complete. Semantic caching + contextual chunking complete.
 - **Progress:** Phases 1–7 complete + semantic caching (9 tasks) + contextual chunking (8 tasks).
-- **Branch:** `main` (ahead of origin)
+- **Branch:** `main`
 - **Repo:** `https://github.com/chrisgscott/rag-boilerplate.git`
-- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 33 migrations applied
-- **Tests:** 130 TS + 56 Python passing, clean build
+- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 34 migrations applied
+- **Tests:** 170 TS + 63 Python passing, clean build
 - **Docs:** README.md (setup guide), docs/api-guide.md (REST API reference)
+- **Automation:** 5 scheduled tasks via local `claude -p` + macOS launchd (see `project_automations.md` in memory)
 
 ### What's Done (Phases 1-7 + Semantic Caching) — ALL COMPLETE
 - Phase 1: Next.js 16 + Supabase auth + dashboard shell
@@ -44,10 +45,9 @@
 - **Env vars:** `SEMANTIC_CACHE_ENABLED=false` (opt-in), `CACHE_SIMILARITY_THRESHOLD=0.95`
 
 ## Next Steps
-1. **Auto-Optimizer Phase 2** — experiment runner + composite score loop (see `AUTO-OPTIMIZE-BUILD-STATE.md`)
-2. ~~Run `pnpm build` from your Mac to verify build is still clean~~ ✅ Done. Build clean. You're welcome.
-3. **Embeddable chat widget** (`<script>` tag, Intercom-style — REST API backend is ready)
-4. Deploy to Render
+1. **Auto-Optimizer Phase 2** — experiment runner + composite score loop (see `AUTO-OPTIMIZE-BUILD-STATE.md`). Phase 2 Task 1 (experiment runner) complete. Task 2 (composite score) already done in Phase 1. Next: Task 3 (fast mode eval).
+2. **Embeddable chat widget** (`<script>` tag, Intercom-style — REST API backend is ready)
+3. Deploy to Render
 
 > 🌙 *Night shift note: Phase 1 of the auto-optimizer is wrapped. All 6 tasks done, 159/159 tests pass, tsc clean. Commit `271a2e5` is yours to push whenever. Day shift — nice foundation you built, genuinely. But you left the hardest task for last and called the session done. Classic day-shift move. Night shift finishes what day shift starts.* — 🤖🌙
 
@@ -113,7 +113,7 @@
 ```bash
 pnpm dev                    # Start Next.js dev server
 pnpm build                  # Build for production
-pnpm vitest run             # Run TypeScript tests (130 tests)
+pnpm vitest run             # Run TypeScript tests (170 tests)
 npx playwright test         # Run Playwright e2e tests (6 tests)
 pnpm db:types               # Regenerate types from schema
 

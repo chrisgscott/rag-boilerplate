@@ -26,7 +26,7 @@ All work happens in /Users/chrisgscott/projects/RAG-boilerplate. Do not push to 
 
 Stop after completing one task or after 90 minutes, whichever comes first. Never end with failing tests, a broken build, or uncommitted changes.' \
   --permission-mode auto \
-  --max-budget-usd 5.00
+  --max-budget-usd 20.00
 
 echo ""
 echo "🌙 Night shift clocked out."
