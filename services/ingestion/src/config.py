@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     # Chunking
     chunk_max_tokens: int = 512
     chunk_overlap: float = 0.15
+    min_unit_tokens: int = 100
+    max_unit_tokens: int = 500
 
     # Contextual chunking (optional — prepends LLM-generated context to chunks)
     contextual_chunking_enabled: bool = False
@@ -32,8 +34,8 @@ class Settings(BaseSettings):
     # Docling document persistence (stores full JSON for re-processing)
     persist_docling_doc: bool = True
 
-    # Semantic unit extraction (optional — extracts structured units via HierarchicalChunker)
-    extract_semantic_units: bool = False
+    # Semantic unit table population (optional — stores structured units in document_semantic_units table)
+    populate_semantic_units_table: bool = False
 
     # Classification pipeline (optional)
     classification_pipeline_enabled: bool = False

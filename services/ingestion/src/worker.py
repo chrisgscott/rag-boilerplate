@@ -195,7 +195,7 @@ async def process_message(message: dict) -> None:
             await persist_docling_json(document_id, parse_result.docling_json)
 
             # Extract semantic units (optional — structured extraction via HierarchicalChunker)
-            if settings.extract_semantic_units and parse_result.docling_doc:
+            if settings.populate_semantic_units_table and parse_result.docling_doc:
                 units = extract_units(parse_result.docling_doc)
                 await upsert_semantic_units(document_id, organization_id, units)
                 logger.info(f"Stored {len(units)} semantic units for {document_id}")
