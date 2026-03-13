@@ -1,6 +1,7 @@
 import { authenticateApiKey } from "@/lib/api/auth";
 import { apiSuccess, apiError } from "@/lib/api/response";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { startOptimizationSession } from "@/lib/rag/optimizer/wire";
 
 export async function POST(req: Request) {
   const auth = await authenticateApiKey(req);
@@ -31,27 +32,16 @@ export async function POST(req: Request) {
     return apiError("conflict", "An optimization session is already running", 409);
   }
 
-  // Create a new run record
-  const { data: run, error: runError } = await admin
-    .from("optimization_runs")
-    .insert({
-      organization_id: organizationId,
-      status: "running",
-      baseline_config: {},
-      composite_weights: {},
-    })
-    .select("id")
-    .single();
-
-  if (runError) {
-    return apiError("internal_error", "Failed to create optimization session", 500);
+  try {
+    await startOptimizationSession(admin, organizationId);
+    return apiSuccess({ status: "started" }, 201);
+  } catch (err) {
+    return apiError(
+      "internal_error",
+      err instanceof Error ? err.message : "Failed to start optimization session",
+      500
+    );
   }
-
-  // Fire-and-forget: actual session runs in background
-  // In production, this would call runSession() with proper deps
-  // For now, just return the session ID
-
-  return apiSuccess({ sessionId: run.id, status: "running" }, 201);
 }
 
 export async function GET(req: Request) {

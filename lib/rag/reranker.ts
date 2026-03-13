@@ -48,9 +48,15 @@ export async function rerankResults(
     } catch (err: unknown) {
       lastError = err;
       const is429 =
-        err instanceof Error && err.message.includes("429");
+        (err != null &&
+          typeof err === "object" &&
+          "statusCode" in err &&
+          (err as { statusCode: number }).statusCode === 429) ||
+        (err instanceof Error && err.message.includes("429"));
       if (!is429 || attempt === MAX_RETRIES - 1) break;
-      const delay = BASE_DELAY_MS * (attempt + 1);
+      // Exponential backoff with jitter
+      const jitter = Math.random() * 2000;
+      const delay = BASE_DELAY_MS * Math.pow(2, attempt) + jitter;
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }

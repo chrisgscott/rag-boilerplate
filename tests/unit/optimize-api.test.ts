@@ -6,11 +6,15 @@ vi.mock("@/lib/api/auth", () => ({
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: vi.fn(),
 }));
+vi.mock("@/lib/rag/optimizer/wire", () => ({
+  startOptimizationSession: vi.fn(),
+}));
 
 import { POST, GET } from "@/app/api/v1/optimize/route";
 import { GET as GET_BY_ID } from "@/app/api/v1/optimize/[id]/route";
 import { authenticateApiKey } from "@/lib/api/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { startOptimizationSession } from "@/lib/rag/optimizer/wire";
 
 function mockAuth(organizationId = "org-1") {
   (authenticateApiKey as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -86,84 +90,31 @@ describe("POST /api/v1/optimize", () => {
     expect(body.error.code).toBe("conflict");
   });
 
-  it("returns 201 with sessionId on success", async () => {
+  it("returns 201 with status started on success", async () => {
     mockAuth();
     process.env.AUTO_OPTIMIZE_ENABLED = "true";
 
-    // First call: check for active run (returns null)
-    // Second call: insert new run (returns the new run)
-    const maybeSingleMock = vi.fn().mockResolvedValue({ data: null, error: null });
-    const singleMock = vi.fn().mockResolvedValue({
-      data: { id: "new-run-456" },
-      error: null,
-    });
-
-    const selectChain = {
-      eq: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          limit: vi.fn().mockReturnValue({
-            maybeSingle: maybeSingleMock,
-          }),
-        }),
-      }),
-    };
-
-    const insertChain = {
-      select: vi.fn().mockReturnValue({
-        single: singleMock,
-      }),
-    };
-
-    const fromMock = vi.fn((table: string) => {
-      if (table === "optimization_runs") {
-        return {
-          select: vi.fn().mockReturnValue(selectChain.eq),
-          insert: vi.fn().mockReturnValue(insertChain),
-        };
-      }
-      return {};
-    });
-
-    // Use a simpler approach: mock from() to return different things per call
-    let callCount = 0;
+    // Mock: no active run
     const admin = {
-      from: vi.fn(() => {
-        callCount++;
-        if (callCount === 1) {
-          // First call: select to check active run
-          return {
-            select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                eq: vi.fn().mockReturnValue({
-                  limit: vi.fn().mockReturnValue({
-                    maybeSingle: vi.fn().mockResolvedValue({
-                      data: null,
-                      error: null,
-                    }),
-                  }),
-                }),
-              }),
-            }),
-          };
-        } else {
-          // Second call: insert new run
-          return {
-            insert: vi.fn().mockReturnValue({
-              select: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({
-                  data: { id: "new-run-456" },
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: null,
                   error: null,
                 }),
               }),
             }),
-          };
-        }
+          }),
+        }),
       }),
     };
-
-    void fromMock; // suppress unused variable warning
-
     (createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(admin);
+    (startOptimizationSession as ReturnType<typeof vi.fn>).mockResolvedValue({
+      status: "started",
+    });
 
     const req = new Request("http://localhost/api/v1/optimize", {
       method: "POST",
@@ -171,8 +122,8 @@ describe("POST /api/v1/optimize", () => {
     const res = await POST(req);
     expect(res.status).toBe(201);
     const body = await res.json();
-    expect(body.data.sessionId).toBe("new-run-456");
-    expect(body.data.status).toBe("running");
+    expect(body.data.status).toBe("started");
+    expect(startOptimizationSession).toHaveBeenCalledWith(admin, "org-1");
   });
 });
 

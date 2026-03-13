@@ -10,6 +10,11 @@ export type EvalConfig = {
   model: string;
   topK: number;
   similarityThreshold: number;
+  /** Optional search overrides — forwarded to hybridSearch when present */
+  fullTextWeight?: number;
+  semanticWeight?: number;
+  rerankEnabled?: boolean;
+  rerankCandidateMultiplier?: number;
 };
 
 export type PerCaseResult = {
@@ -67,6 +72,10 @@ export async function runEvaluation(
       query: tc.question,
       organizationId,
       matchCount: config.topK,
+      fullTextWeight: config.fullTextWeight,
+      semanticWeight: config.semanticWeight,
+      rerankEnabled: config.rerankEnabled,
+      rerankCandidateMultiplier: config.rerankCandidateMultiplier,
     });
 
     // Deduplicate document IDs from retrieved chunks
