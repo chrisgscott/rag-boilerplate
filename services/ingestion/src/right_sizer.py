@@ -6,8 +6,7 @@ oversized units at structure boundaries (table rows, sentence breaks).
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from math import ceil
+from dataclasses import dataclass
 
 from src.chunker import Chunk, estimate_tokens
 from src.semantic_units import SemanticUnit
@@ -117,6 +116,96 @@ def _merge_pass(units: list[SemanticUnit], options: RightSizeOptions) -> list[Ch
     return chunks
 
 
+def _split_table(content: str, max_tokens: int, metadata: dict) -> list[Chunk]:
+    """Split a markdown table at row boundaries, preserving header in each chunk."""
+    lines = content.split("\n")
+    header_lines: list[str] = []
+    data_lines: list[str] = []
+    header_found = False
+
+    for line in lines:
+        stripped = line.strip()
+        if not header_found:
+            header_lines.append(line)
+            if stripped.startswith("|") and set(stripped.replace("|", "").strip()) <= {"-", ":", " "}:
+                if len(header_lines) >= 2:
+                    header_found = True
+        else:
+            if stripped:
+                data_lines.append(line)
+
+    if not header_found:
+        return _split_prose(content, max_tokens, metadata)
+
+    header_text = "\n".join(header_lines)
+    header_tokens = estimate_tokens(header_text)
+
+    chunks: list[Chunk] = []
+    current_rows: list[str] = []
+    current_tokens = header_tokens
+
+    for row in data_lines:
+        row_tokens = estimate_tokens(row)
+        if current_tokens + row_tokens > max_tokens and current_rows:
+            chunk_content = header_text + "\n" + "\n".join(current_rows)
+            chunks.append(Chunk(
+                content=chunk_content, index=0,
+                token_count=estimate_tokens(chunk_content),
+                metadata=dict(metadata), context=None,
+            ))
+            current_rows = [row]
+            current_tokens = header_tokens + row_tokens
+        else:
+            current_rows.append(row)
+            current_tokens += row_tokens
+
+    if current_rows:
+        chunk_content = header_text + "\n" + "\n".join(current_rows)
+        chunks.append(Chunk(
+            content=chunk_content, index=0,
+            token_count=estimate_tokens(chunk_content),
+            metadata=dict(metadata), context=None,
+        ))
+
+    return chunks if chunks else [Chunk(
+        content=content, index=0, token_count=estimate_tokens(content),
+        metadata=dict(metadata), context=None,
+    )]
+
+
+def _split_prose(content: str, max_tokens: int, metadata: dict) -> list[Chunk]:
+    """Split prose at sentence boundaries using the chunker's split logic.
+
+    Note: _split_segment and _merge_segments are private functions in chunker.py.
+    They are stable internal APIs reused here to avoid duplication.
+    """
+    from src.chunker import _split_segment, _merge_segments
+
+    segments = _split_segment(content, max_tokens)
+    merged = _merge_segments(segments, max_tokens)
+
+    chunks: list[Chunk] = []
+    for segment in merged:
+        chunks.append(Chunk(
+            content=segment, index=0,
+            token_count=estimate_tokens(segment),
+            metadata=dict(metadata), context=None,
+        ))
+
+    return chunks if chunks else [Chunk(
+        content=content, index=0, token_count=estimate_tokens(content),
+        metadata=dict(metadata), context=None,
+    )]
+
+
+def _split_chunk(chunk: Chunk, max_tokens: int) -> list[Chunk]:
+    """Split an oversized chunk using structure-aware logic."""
+    label = chunk.metadata.get("label", "paragraph")
+    if label == "table":
+        return _split_table(chunk.content, max_tokens, chunk.metadata)
+    return _split_prose(chunk.content, max_tokens, chunk.metadata)
+
+
 def right_size_units(units: list[SemanticUnit], options: RightSizeOptions | None = None) -> list[Chunk]:
     """Right-size semantic units: merge small, split large.
 
@@ -133,13 +222,19 @@ def right_size_units(units: list[SemanticUnit], options: RightSizeOptions | None
     # Phase 1: Merge small adjacent units
     merged = _merge_pass(units, options)
 
-    # Phase 2: Split oversized chunks — placeholder pass-through until Task 4 adds _split_chunk.
-    # For now, all chunks pass through with re-indexed positions.
+    # Phase 2: Split oversized chunks
     result: list[Chunk] = []
     final_index = 0
     for chunk in merged:
-        chunk.index = final_index
-        result.append(chunk)
-        final_index += 1
+        if chunk.token_count > options.max_tokens:
+            split_chunks = _split_chunk(chunk, options.max_tokens)
+            for sc in split_chunks:
+                sc.index = final_index
+                result.append(sc)
+                final_index += 1
+        else:
+            chunk.index = final_index
+            result.append(chunk)
+            final_index += 1
 
     return result
