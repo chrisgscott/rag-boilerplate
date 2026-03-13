@@ -12,10 +12,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { deleteDocument } from "@/app/(dashboard)/documents/actions";
+import { deleteDocument, reIngestAll } from "@/app/(dashboard)/documents/actions";
 import { toast } from "sonner";
-import { useState, useEffect } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { RefreshCw } from "lucide-react";
 
 type Document = {
   id: string;
@@ -65,6 +66,7 @@ function fileTypeLabel(mime: string) {
 
 export function DocumentList({ documents }: { documents: Document[] }) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isReingesting, startReingestionTransition] = useTransition();
   const router = useRouter();
 
   // Poll for status updates when any document is pending or processing
@@ -91,6 +93,17 @@ export function DocumentList({ documents }: { documents: Document[] }) {
     setDeletingId(null);
   };
 
+  const handleReingest = () => {
+    startReingestionTransition(async () => {
+      const result = await reIngestAll();
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success(`Re-ingesting ${result.enqueued} document(s)`);
+      }
+    });
+  };
+
   if (documents.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -101,6 +114,22 @@ export function DocumentList({ documents }: { documents: Document[] }) {
   }
 
   return (
+    <div className="space-y-3">
+      <div className="flex justify-end">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleReingest}
+          disabled={isReingesting}
+        >
+          {isReingesting ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : (
+            <RefreshCw className="h-4 w-4 mr-2" />
+          )}
+          Re-ingest All
+        </Button>
+      </div>
     <Table>
       <TableHeader>
         <TableRow>
@@ -163,5 +192,6 @@ export function DocumentList({ documents }: { documents: Document[] }) {
         })}
       </TableBody>
     </Table>
+    </div>
   );
 }

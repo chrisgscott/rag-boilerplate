@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
@@ -165,4 +166,62 @@ export async function deleteDocument(documentId: string) {
 
   revalidatePath("/documents");
   return { success: true };
+}
+
+/**
+ * Re-ingest all documents for the current organization.
+ * Sets all docs to "processing" and enqueues them via pgmq.
+ * The Python worker will re-extract semantic units and re-embed.
+ */
+export async function reIngestAll() {
+  const { organizationId } = await getCurrentOrg();
+  const admin = createAdminClient();
+
+  // Get all documents for this org
+  const { data: documents, error } = await admin
+    .from("documents")
+    .select("id")
+    .eq("organization_id", organizationId);
+
+  if (error) {
+    return { error: `Failed to fetch documents: ${error.message}` };
+  }
+  if (!documents?.length) {
+    return { error: "No documents to re-ingest" };
+  }
+
+  // Set all documents to "processing" status
+  for (const doc of documents) {
+    await admin
+      .from("documents")
+      .update({ status: "processing" })
+      .eq("id", doc.id);
+  }
+
+  // Enqueue re-ingestion messages via pgmq — one per document
+  for (const doc of documents) {
+    const { error: enqueueError } = await admin.rpc("enqueue_ingestion", {
+      p_document_id: doc.id,
+    });
+    if (enqueueError) {
+      console.error(`Failed to enqueue ${doc.id}: ${enqueueError.message}`);
+    }
+  }
+
+  // Bump cache version to invalidate stale cached responses
+  const { data: currentOrg } = await admin
+    .from("organizations")
+    .select("cache_version")
+    .eq("id", organizationId)
+    .single();
+
+  if (currentOrg) {
+    await admin
+      .from("organizations")
+      .update({ cache_version: (currentOrg.cache_version ?? 1) + 1 })
+      .eq("id", organizationId);
+  }
+
+  revalidatePath("/documents");
+  return { success: true, enqueued: documents.length };
 }
