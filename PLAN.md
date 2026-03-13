@@ -3,7 +3,7 @@
 ## Current Status
 - **Phase:** All core phases complete. Auto-optimizer phases 3-6 complete.
 - **Progress:** Phases 1–7 + semantic caching + contextual chunking + deployment readiness + auto-optimizer (all 6 phases).
-- **Branch:** `main`
+- **Branch:** `main` (32 commits ahead of origin — needs push)
 - **Repo:** `https://github.com/chrisgscott/rag-boilerplate.git`
 - **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 40 migrations applied
 - **Tests:** 279 TS + 96 Python passing, clean build, tsc clean

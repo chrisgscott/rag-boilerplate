@@ -1008,7 +1008,11 @@ Compare results. If scores regress significantly (>5% drop on any metric), inves
 - Are tables being split correctly?
 - Is contextual chunking still working?
 
-- [ ] **Step 7: Final commit**
+- [ ] **Step 7: Add label badge to document detail page (nice-to-have)**
+
+In `app/(dashboard)/documents/[id]/page.tsx`, where chunks display as "Chunk 1, Chunk 2, ...", add a `Badge` showing the chunk's `label` (e.g., "Table", "Paragraph") when available. This is a small UI enhancement — the page works without it. Only show the badge if `label` is non-null.
+
+- [ ] **Step 8: Final commit**
 
 Stage only the specific files modified during integration fixes (if any). Do not use `git add -A` — it risks staging unintended files.
 
