@@ -5,6 +5,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
     "db:types": "supabase gen types typescript --local 2>/dev/null | grep -v '^Connecting' > types/database.types.ts",
     "db:reset": "supabase db reset"
   },

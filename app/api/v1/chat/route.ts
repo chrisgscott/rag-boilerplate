@@ -7,7 +7,15 @@ import { buildSystemPrompt } from "@/lib/rag/prompt";
 import { getLLMProvider, getModelId } from "@/lib/rag/provider";
 import { trackUsage } from "@/lib/rag/cost-tracker";
 import { embedQuery } from "@/lib/rag/embedder";
-import { isCacheEnabled, lookupCache, writeCache } from "@/lib/rag/cache";
+import { isCacheEnabled, lookupCache } from "@/lib/rag/cache";
+import {
+  type ChatSource,
+  sourcesForHeader,
+  createOnFinishHandler,
+  createSSEResponse,
+  createAiSdkResponse,
+  createSSEStreamResponse,
+} from "@/lib/api/chat-helpers";
 
 const REFUSAL_MESSAGE =
   "I don't have enough information in the available documents to answer that question.";
@@ -158,7 +166,7 @@ export async function POST(req: Request) {
         chunksRetrieved: 0,
       }).catch(() => {});
 
-      const cachedSources = (cached.sources as any[]).map((s: any) => ({
+      const cachedSources = (cached.sources as ChatSource[]).map((s) => ({
         documentId: s.documentId,
         documentName: s.documentName,
         chunkId: s.chunkId,
@@ -167,7 +175,6 @@ export async function POST(req: Request) {
         similarity: s.similarity,
       }));
 
-      // Non-streaming JSON response
       if (!shouldStream) {
         return apiSuccess({
           conversationId,
@@ -177,53 +184,15 @@ export async function POST(req: Request) {
         });
       }
 
-      // AI SDK format
       if (useAiSdkFormat) {
-        const encoder = new TextEncoder();
-        const stream = new ReadableStream({
-          start(controller) {
-            controller.enqueue(encoder.encode(`0:${JSON.stringify(cached.responseText)}\n`));
-            controller.close();
-          },
-        });
-        return new Response(stream, {
-          headers: {
-            "Content-Type": "text/x-vercel-ai-data-stream",
-            "x-conversation-id": conversationId!,
-            "x-sources": JSON.stringify(cachedSources.map(({ content: _c, ...rest }) => rest)),
-            "x-cache-status": "hit",
-          },
+        return createAiSdkResponse(cached.responseText, {
+          "x-conversation-id": conversationId!,
+          "x-sources": JSON.stringify(sourcesForHeader(cachedSources)),
+          "x-cache-status": "hit",
         });
       }
 
-      // SSE format (default)
-      const encoder = new TextEncoder();
-      const stream = new ReadableStream({
-        start(controller) {
-          controller.enqueue(
-            encoder.encode(
-              `event: text-delta\ndata: ${JSON.stringify({ content: cached.responseText })}\n\n`
-            )
-          );
-          controller.enqueue(
-            encoder.encode(`event: sources\ndata: ${JSON.stringify(cachedSources)}\n\n`)
-          );
-          controller.enqueue(
-            encoder.encode(
-              `event: done\ndata: ${JSON.stringify({ conversationId, cached: true })}\n\n`
-            )
-          );
-          controller.close();
-        },
-      });
-
-      return new Response(stream, {
-        headers: {
-          "Content-Type": "text/event-stream",
-          "Cache-Control": "no-cache",
-          "x-cache-status": "hit",
-        },
-      });
+      return createSSEResponse(cached.responseText, cachedSources, conversationId!, { cached: true }, { "x-cache-status": "hit" });
     }
   }
 
@@ -250,63 +219,24 @@ export async function POST(req: Request) {
     });
 
     if (!shouldStream) {
-      return apiSuccess({
-        conversationId,
-        message: REFUSAL_MESSAGE,
-        sources: [],
-      });
+      return apiSuccess({ conversationId, message: REFUSAL_MESSAGE, sources: [] });
     }
 
     if (useAiSdkFormat) {
-      // AI SDK data stream format refusal
-      const encoder = new TextEncoder();
-      const stream = new ReadableStream({
-        start(controller) {
-          controller.enqueue(encoder.encode(`0:${JSON.stringify(REFUSAL_MESSAGE)}\n`));
-          controller.close();
-        },
-      });
-      return new Response(stream, {
-        headers: {
-          "Content-Type": "text/x-vercel-ai-data-stream",
-          "x-conversation-id": conversationId!,
-          "x-sources": "[]",
-        },
+      return createAiSdkResponse(REFUSAL_MESSAGE, {
+        "x-conversation-id": conversationId!,
+        "x-sources": "[]",
       });
     }
 
-    // SSE refusal (default)
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream({
-      start(controller) {
-        controller.enqueue(
-          encoder.encode(
-            `event: text-delta\ndata: ${JSON.stringify({ content: REFUSAL_MESSAGE })}\n\n`
-          )
-        );
-        controller.enqueue(encoder.encode(`event: sources\ndata: []\n\n`));
-        controller.enqueue(
-          encoder.encode(
-            `event: done\ndata: ${JSON.stringify({ conversationId })}\n\n`
-          )
-        );
-        controller.close();
-      },
-    });
-
-    return new Response(stream, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-      },
-    });
+    return createSSEResponse(REFUSAL_MESSAGE, [], conversationId!);
   }
 
   // 9. Build system prompt
   const systemPrompt = buildSystemPrompt(relevantResults, orgSystemPrompt);
 
   // 10. Format sources
-  const sources = relevantResults.map(
+  const sources: ChatSource[] = relevantResults.map(
     (r: {
       documentId: string;
       documentName: string;
@@ -341,6 +271,20 @@ export async function POST(req: Request) {
     return apiError("bad_request", "Invalid message format", 400);
   }
 
+  const onFinish = createOnFinishHandler({
+    admin,
+    conversationId: conversationId!,
+    userMessageId,
+    sources,
+    organizationId,
+    queryTokenCount: searchResponse.queryTokenCount,
+    modelId,
+    cacheEnabled,
+    queryEmbedding,
+    latestMessageContent: latestMessage.content,
+    cacheVersion,
+  });
+
   // 12a. Non-streaming response
   if (!shouldStream) {
     const result = await generateText({
@@ -349,37 +293,7 @@ export async function POST(req: Request) {
       messages: modelMessages,
     });
 
-    // Save assistant message (best-effort)
-    try {
-      await admin.from("messages").insert({
-        conversation_id: conversationId,
-        parent_message_id: userMessageId,
-        role: "assistant",
-        content: result.text,
-        sources,
-      });
-    } catch {
-      // ignore
-    }
-
-    // Track usage (fire-and-forget)
-    trackUsage(admin, {
-      organizationId,
-      userId: null,
-      queryText: latestMessage.content,
-      embeddingTokens: searchResponse.queryTokenCount,
-      llmInputTokens: result.usage?.inputTokens ?? 0,
-      llmOutputTokens: result.usage?.outputTokens ?? 0,
-      model: modelId,
-      chunksRetrieved: relevantResults.length,
-    }).catch(() => {});
-
-    // Write to semantic cache
-    if (cacheEnabled && queryEmbedding) {
-      void Promise.resolve(
-        writeCache(admin, queryEmbedding.embedding, latestMessage.content, organizationId, cacheVersion, result.text, sources, modelId)
-      ).catch(() => {});
-    }
+    await onFinish({ text: result.text, usage: result.usage });
 
     return apiSuccess({ conversationId, message: result.text, sources });
   }
@@ -390,44 +304,13 @@ export async function POST(req: Request) {
       model: provider(modelId),
       system: systemPrompt,
       messages: modelMessages,
-      onFinish: async ({ text, usage }) => {
-        try {
-          await admin.from("messages").insert({
-            conversation_id: conversationId,
-            parent_message_id: userMessageId,
-            role: "assistant",
-            content: text,
-            sources,
-          });
-        } catch {
-          // ignore
-        }
-
-        trackUsage(admin, {
-          organizationId,
-          userId: null,
-          queryText: latestMessage.content,
-          embeddingTokens: searchResponse.queryTokenCount,
-          llmInputTokens: usage?.inputTokens ?? 0,
-          llmOutputTokens: usage?.outputTokens ?? 0,
-          model: modelId,
-          chunksRetrieved: relevantResults.length,
-        }).catch(() => {});
-
-        if (cacheEnabled && queryEmbedding) {
-          void Promise.resolve(
-            writeCache(admin, queryEmbedding.embedding, latestMessage.content, organizationId, cacheVersion, text, sources, modelId)
-          ).catch(() => {});
-        }
-      },
+      onFinish,
     });
 
     return result.toUIMessageStreamResponse({
       headers: {
         "x-conversation-id": conversationId!,
-        "x-sources": JSON.stringify(
-          sources.map(({ content: _content, ...rest }) => rest)
-        ),
+        "x-sources": JSON.stringify(sourcesForHeader(sources)),
         ...(cacheEnabled ? { "x-cache-status": "miss" } : {}),
       },
     });
@@ -438,74 +321,13 @@ export async function POST(req: Request) {
     model: provider(modelId),
     system: systemPrompt,
     messages: modelMessages,
-    onFinish: async ({ text, usage }) => {
-      try {
-        await admin.from("messages").insert({
-          conversation_id: conversationId,
-          parent_message_id: userMessageId,
-          role: "assistant",
-          content: text,
-          sources,
-        });
-      } catch {
-        // ignore
-      }
-
-      trackUsage(admin, {
-        organizationId,
-        userId: null,
-        queryText: latestMessage.content,
-        embeddingTokens: searchResponse.queryTokenCount,
-        llmInputTokens: usage?.inputTokens ?? 0,
-        llmOutputTokens: usage?.outputTokens ?? 0,
-        model: modelId,
-        chunksRetrieved: relevantResults.length,
-      }).catch(() => {});
-
-      if (cacheEnabled && queryEmbedding) {
-        void Promise.resolve(
-          writeCache(admin, queryEmbedding.embedding, latestMessage.content, organizationId, cacheVersion, text, sources, modelId)
-        ).catch(() => {});
-      }
-    },
+    onFinish,
   });
 
-  const encoder = new TextEncoder();
-  const textStream = result.textStream;
-
-  const sseStream = new ReadableStream({
-    async start(controller) {
-      try {
-        for await (const chunk of textStream) {
-          controller.enqueue(
-            encoder.encode(
-              `event: text-delta\ndata: ${JSON.stringify({ content: chunk })}\n\n`
-            )
-          );
-        }
-        // Send sources after text is complete
-        controller.enqueue(
-          encoder.encode(
-            `event: sources\ndata: ${JSON.stringify(sources)}\n\n`
-          )
-        );
-        controller.enqueue(
-          encoder.encode(
-            `event: done\ndata: ${JSON.stringify({ conversationId })}\n\n`
-          )
-        );
-        controller.close();
-      } catch (err) {
-        controller.error(err);
-      }
-    },
-  });
-
-  return new Response(sseStream, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      ...(cacheEnabled ? { "x-cache-status": "miss" } : {}),
-    },
-  });
+  return createSSEStreamResponse(
+    result.textStream,
+    sources,
+    conversationId!,
+    cacheEnabled ? { "x-cache-status": "miss" } : undefined,
+  );
 }
