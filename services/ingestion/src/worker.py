@@ -99,6 +99,8 @@ def upsert_chunks(
             "chunk_index": chunk.index,
             "token_count": chunk.token_count,
             "metadata": chunk.metadata,
+            "label": chunk.metadata.get("label") if chunk.metadata else None,
+            "headings": chunk.metadata.get("headings") if chunk.metadata else None,
         }
         for i, chunk in enumerate(chunks)
     ]

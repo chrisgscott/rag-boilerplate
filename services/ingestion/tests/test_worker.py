@@ -408,6 +408,55 @@ class TestUpsertChunksContext:
         assert insert_call[0]["context"] is None
 
 
+class TestUpsertChunksLabelHeadings:
+    @patch("src.worker._get_supabase")
+    def test_includes_label_and_headings_in_upsert_rows(self, mock_supabase):
+        """upsert_chunks sends label and headings from chunk metadata."""
+        from src.worker import upsert_chunks
+        from src.chunker import Chunk
+
+        supabase = MagicMock()
+        mock_supabase.return_value = supabase
+        supabase.table.return_value.insert.return_value.execute.return_value = MagicMock()
+
+        chunks = [
+            Chunk(content="Test content", index=0, token_count=5,
+                  metadata={"label": "table", "headings": ["Ch1", "Sec2"],
+                            "page_numbers": [1]},
+                  context=None),
+        ]
+        embeddings = [[0.1] * 1536]
+
+        upsert_chunks(chunks, embeddings, "doc-123", "org-456")
+
+        insert_call = supabase.table.return_value.insert.call_args[0][0]
+        row = insert_call[0]
+        assert row["label"] == "table"
+        assert row["headings"] == ["Ch1", "Sec2"]
+
+    @patch("src.worker._get_supabase")
+    def test_label_and_headings_null_when_not_in_metadata(self, mock_supabase):
+        """upsert_chunks sends None for label/headings when not in metadata."""
+        from src.worker import upsert_chunks
+        from src.chunker import Chunk
+
+        supabase = MagicMock()
+        mock_supabase.return_value = supabase
+        supabase.table.return_value.insert.return_value.execute.return_value = MagicMock()
+
+        chunks = [
+            Chunk(content="Old-style chunk", index=0, token_count=5),
+        ]
+        embeddings = [[0.1] * 1536]
+
+        upsert_chunks(chunks, embeddings, "doc-123", "org-456")
+
+        insert_call = supabase.table.return_value.insert.call_args[0][0]
+        row = insert_call[0]
+        assert row["label"] is None
+        assert row["headings"] is None
+
+
 class TestDoclingJsonPersistence:
     @patch("src.worker.settings")
     @patch("src.worker._get_supabase")
