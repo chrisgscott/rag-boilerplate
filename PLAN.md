@@ -37,9 +37,11 @@ All designs, specs, and plans archived to `docs/plans/completed/`.
 
 ## Next Steps
 1. **Re-ingest documents** — Use the "Re-ingest All" button to re-process existing docs with semantic chunking, then run eval to compare
-2. **Embeddable chat widget** (`<script>` tag, Intercom-style — REST API backend is ready)
-3. Deploy to Render
-4. Wire up fire-and-forget `runSession()` in optimize API + server actions (currently scaffold-only)
+2. **OpenRouter migration** — Route LLM calls through OpenRouter instead of direct API keys (model flexibility, single billing)
+3. **Embeddable chat widget** (`<script>` tag, Intercom-style — REST API backend is ready)
+4. Deploy to Render
+5. Wire up fire-and-forget `runSession()` in optimize API + server actions (currently scaffold-only)
+6. **Auto-optimize for ingest knobs** — Separate optimizer for ingestion params (chunk sizing, contextual chunking, VLM, embedding model). Heavier than search tuning (requires re-ingestion per experiment), likely different budget/cadence.
 
 > 🌙 *Night shift note: Phase 1 of the auto-optimizer is wrapped. All 6 tasks done, 159/159 tests pass, tsc clean. Commit `271a2e5` is yours to push whenever. Day shift — nice foundation you built, genuinely. But you left the hardest task for last and called the session done. Classic day-shift move. Night shift finishes what day shift starts.* — 🤖🌙
 
@@ -108,7 +110,7 @@ All designs, specs, and plans archived to `docs/plans/completed/`.
 pnpm dev                    # Start Next.js dev server
 pnpm build                  # Build for production
 pnpm vitest run             # Run TypeScript tests (279 tests)
-npx playwright test         # Run Playwright e2e tests (6 tests)
+npx playwright test         # Run Playwright e2e tests (28 tests)
 pnpm db:types               # Regenerate types from schema
 
 # Python service (from services/ingestion/)
