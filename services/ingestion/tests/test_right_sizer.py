@@ -142,8 +142,8 @@ class TestSplitLargeUnits:
 
     def test_unit_at_max_tokens_not_split(self):
         """A unit exactly at max_tokens is not split."""
-        # ~500 tokens = ~2000 chars
-        text = "word " * 500
+        # ~500 tokens = ~2000 chars (ceil(1999/4) = 500)
+        text = "word " * 400
         units = [_unit(text.strip(), headings=["H1"])]
         result = right_size_units(units, RightSizeOptions(min_tokens=100, max_tokens=500))
         assert len(result) == 1

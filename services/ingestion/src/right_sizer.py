@@ -93,8 +93,6 @@ def _merge_pass(units: list[SemanticUnit], options: RightSizeOptions) -> list[Ch
             unit.headings == buf_headings
             and unit.label in _MERGEABLE_LABELS
             and all(l in _MERGEABLE_LABELS for l in buf_labels)
-            and "table" not in buf_labels
-            and unit.label != "table"
             and combined_tokens <= options.max_tokens
         )
 
