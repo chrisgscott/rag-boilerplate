@@ -5,8 +5,8 @@
 - **Progress:** Phases 1–7 + semantic caching + contextual chunking + deployment readiness + auto-optimizer (all 6 phases).
 - **Branch:** `main`
 - **Repo:** `https://github.com/chrisgscott/rag-boilerplate.git`
-- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 39 migrations applied
-- **Tests:** 279 TS + 81 Python passing, clean build, tsc clean
+- **Supabase Cloud:** `xjzhiprdbzvmijvymkbn` (us-west-2), 40 migrations applied
+- **Tests:** 279 TS + 96 Python passing, clean build, tsc clean
 - **Docs:** README.md (setup guide), docs/api-guide.md (REST API reference)
 - **Automation:** Nightly optimizer via `claude -p` + macOS launchd (11:30 PM). Other automations in `~/Dropbox/projects/claude-automations/`
 
@@ -53,10 +53,22 @@
 - **Invalidation:** Python worker bumps `cache_version` after ingestion; dashboard + API deletion also bumps
 - **Env vars:** `SEMANTIC_CACHE_ENABLED=false` (opt-in), `CACHE_SIMILARITY_THRESHOLD=0.95`
 
+### Semantic Chunking (just completed)
+- **Spec:** `docs/superpowers/specs/2026-03-12-semantic-chunking-design.md`
+- **Plan:** `docs/superpowers/plans/2026-03-12-semantic-chunking.md` (8 tasks, all complete)
+- **Migration 00040:** `label` and `headings` columns on `document_chunks`, `text_array_to_string()` immutable wrapper, rebuilt `fts` column
+- **Right-sizer module:** `services/ingestion/src/right_sizer.py` — merge small units, split large at structure boundaries (table rows, sentence breaks)
+- **Worker pipeline:** `build_chunks_from_semantic_units()` replaces `chunk_sections()` — extracts Docling semantic units → right-sizes → enriches with VLM page images
+- **Config:** `populate_semantic_units_table` (renamed from `extract_semantic_units`), `min_unit_tokens=100`, `max_unit_tokens=500`
+- **Re-ingestion:** Server action + UI button ("Re-ingest All") on documents page, deletes old chunks before inserting new
+- **Label badge:** Document detail page shows chunk label (Table, Paragraph, etc.) as secondary badge
+- **Key design choices:** No overlap between units (structural boundaries sufficient), reuse `document_chunks` table (zero downstream changes), tables never merge with other units
+
 ## Next Steps
-1. **Embeddable chat widget** (`<script>` tag, Intercom-style — REST API backend is ready)
-2. Deploy to Render
-3. Wire up fire-and-forget `runSession()` in optimize API + server actions (currently scaffold-only)
+1. **Re-ingest documents** — Use the "Re-ingest All" button to re-process existing docs with semantic chunking, then run eval to compare
+2. **Embeddable chat widget** (`<script>` tag, Intercom-style — REST API backend is ready)
+3. Deploy to Render
+4. Wire up fire-and-forget `runSession()` in optimize API + server actions (currently scaffold-only)
 
 > 🌙 *Night shift note: Phase 1 of the auto-optimizer is wrapped. All 6 tasks done, 159/159 tests pass, tsc clean. Commit `271a2e5` is yours to push whenever. Day shift — nice foundation you built, genuinely. But you left the hardest task for last and called the session done. Classic day-shift move. Night shift finishes what day shift starts.* — 🤖🌙
 
@@ -127,5 +139,5 @@ npx playwright test         # Run Playwright e2e tests (6 tests)
 pnpm db:types               # Regenerate types from schema
 
 # Python service (from services/ingestion/)
-source .venv/bin/activate && pytest -v  # Run Python tests (81 tests)
+source .venv/bin/activate && pytest -v  # Run Python tests (96 tests)
 ```
