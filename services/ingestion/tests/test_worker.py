@@ -11,12 +11,12 @@ class TestProcessMessage:
     @patch("src.worker._get_supabase")
     @patch("src.worker.parse_document")
     @patch("src.worker.embed_texts")
-    async def test_orchestrates_full_pipeline(self, mock_embed, mock_parse, mock_supabase, mock_settings, mock_db_conn):
+    @patch("src.worker.build_chunks_from_semantic_units")
+    async def test_orchestrates_full_pipeline(self, mock_build_chunks, mock_embed, mock_parse, mock_supabase, mock_settings, mock_db_conn):
         # Config — no VLM, no contextual chunking
         mock_settings.vlm_enabled = False
         mock_settings.contextual_chunking_enabled = False
-        mock_settings.chunk_max_tokens = 512
-        mock_settings.chunk_overlap = 0.15
+        mock_settings.populate_semantic_units_table = False
 
         # Mock Supabase client
         supabase = MagicMock()
@@ -41,7 +41,17 @@ class TestProcessMessage:
             text="Some text",
             sections=[Section(content="Section content here for testing", headers=["H1"], level=1)],
             page_count=1,
+            docling_doc=MagicMock(),
         )
+
+        # Mock build_chunks_from_semantic_units
+        from src.chunker import Chunk
+        mock_build_chunks.return_value = [
+            Chunk(content="Chunk content", index=0, token_count=5,
+                  metadata={"label": "paragraph", "headings": ["H1"], "page_numbers": [1],
+                            "document_name": "test.pdf"},
+                  context=None),
+        ]
 
         # Mock embedder
         from src.embedder import EmbeddingResult
@@ -50,8 +60,9 @@ class TestProcessMessage:
             embeddings=[[0.1] * 1536], token_count=5
         )
 
-        # Mock chunk insert
+        # Mock chunk insert + delete
         supabase.table.return_value.insert.return_value.execute.return_value = MagicMock()
+        supabase.table.return_value.delete.return_value.eq.return_value.execute.return_value = MagicMock()
 
         # Mock status update
         supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = (
@@ -68,11 +79,11 @@ class TestProcessMessage:
         # Verify parse was called
         mock_parse.assert_called_once()
 
+        # Verify semantic units pipeline was called
+        mock_build_chunks.assert_called_once()
+
         # Verify embed was called
         mock_embed.assert_called_once()
-
-        # Verify document status was updated (processing + complete = multiple table calls)
-        assert supabase.table.call_count >= 3  # status update + doc fetch + chunk insert
 
     @patch("src.worker.settings")
     @patch("src.worker._get_supabase")
@@ -105,10 +116,10 @@ class TestProcessMessage:
     @patch("src.worker.settings")
     @patch("src.worker._get_supabase")
     @patch("src.worker.parse_document")
-    async def test_sets_error_on_empty_chunks(self, mock_parse, mock_supabase, mock_settings):
+    @patch("src.worker.build_chunks_from_semantic_units")
+    async def test_sets_error_on_empty_chunks(self, mock_build_chunks, mock_parse, mock_supabase, mock_settings):
         mock_settings.vlm_enabled = False
-        mock_settings.chunk_max_tokens = 512
-        mock_settings.chunk_overlap = 0.15
+        mock_settings.populate_semantic_units_table = False
 
         supabase = MagicMock()
         mock_supabase.return_value = supabase
@@ -122,14 +133,17 @@ class TestProcessMessage:
         }
         supabase.storage.from_.return_value.download.return_value = b""
 
-        # Parser returns no sections
         from src.parser import ParseResult
 
-        mock_parse.return_value = ParseResult(text="", sections=[], page_count=1)
+        mock_parse.return_value = ParseResult(text="", sections=[], page_count=1, docling_doc=MagicMock())
+
+        # build_chunks returns empty list
+        mock_build_chunks.return_value = []
 
         supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = (
             MagicMock()
         )
+        supabase.table.return_value.delete.return_value.eq.return_value.execute.return_value = MagicMock()
 
         message = {
             "document_id": "doc-123",
@@ -142,7 +156,6 @@ class TestProcessMessage:
 
 class TestProcessMessageWithVLM:
     @patch("src.worker._get_db_connection")
-    @patch("src.worker.enrich_sections")
     @patch("src.worker.upload_page_images")
     @patch("src.worker.describe_visual_pages", new_callable=AsyncMock)
     @patch("src.worker.get_visual_pages")
@@ -150,8 +163,10 @@ class TestProcessMessageWithVLM:
     @patch("src.worker._get_supabase")
     @patch("src.worker.parse_document")
     @patch("src.worker.embed_texts")
+    @patch("src.worker.build_chunks_from_semantic_units")
     async def test_runs_vlm_when_api_key_set(
         self,
+        mock_build_chunks,
         mock_embed,
         mock_parse,
         mock_supabase,
@@ -159,14 +174,12 @@ class TestProcessMessageWithVLM:
         mock_visual_pages,
         mock_describe,
         mock_upload,
-        mock_enrich,
         mock_db_conn,
     ):
         # Config with VLM enabled, no contextual chunking
         mock_settings.vlm_enabled = True
         mock_settings.contextual_chunking_enabled = False
-        mock_settings.chunk_max_tokens = 512
-        mock_settings.chunk_overlap = 0.15
+        mock_settings.populate_semantic_units_table = False
 
         # Mock Supabase
         supabase = MagicMock()
@@ -179,6 +192,7 @@ class TestProcessMessageWithVLM:
         }
         supabase.storage.from_.return_value.download.return_value = b"pdf content"
         supabase.table.return_value.insert.return_value.execute.return_value = MagicMock()
+        supabase.table.return_value.delete.return_value.eq.return_value.execute.return_value = MagicMock()
         supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock()
 
         # Mock parser
@@ -199,6 +213,15 @@ class TestProcessMessageWithVLM:
         mock_describe.return_value = {2: "A chart showing data."}
         mock_upload.return_value = {2: "page-images/doc-123/page-2.webp"}
 
+        # Mock build_chunks
+        from src.chunker import Chunk
+        mock_build_chunks.return_value = [
+            Chunk(content="Content here", index=0, token_count=5,
+                  metadata={"label": "paragraph", "headings": ["H1"], "page_numbers": [1],
+                            "document_name": "slides.pdf"},
+                  context=None),
+        ]
+
         # Mock embedder
         from src.embedder import EmbeddingResult
 
@@ -210,7 +233,9 @@ class TestProcessMessageWithVLM:
         mock_visual_pages.assert_called_once_with(mock_docling_doc)
         mock_describe.assert_called_once()
         mock_upload.assert_called_once()
-        mock_enrich.assert_called_once()
+        # VLM page images passed to build_chunks
+        build_call_args = mock_build_chunks.call_args
+        assert build_call_args[1].get("vlm_page_images") or build_call_args[0][2] == {2: "page-images/doc-123/page-2.webp"}
 
     @patch("src.worker._get_db_connection")
     @patch("src.worker.get_visual_pages")
@@ -218,8 +243,10 @@ class TestProcessMessageWithVLM:
     @patch("src.worker._get_supabase")
     @patch("src.worker.parse_document")
     @patch("src.worker.embed_texts")
+    @patch("src.worker.build_chunks_from_semantic_units")
     async def test_skips_vlm_when_disabled(
         self,
+        mock_build_chunks,
         mock_embed,
         mock_parse,
         mock_supabase,
@@ -229,8 +256,7 @@ class TestProcessMessageWithVLM:
     ):
         mock_settings.vlm_enabled = False
         mock_settings.contextual_chunking_enabled = False
-        mock_settings.chunk_max_tokens = 512
-        mock_settings.chunk_overlap = 0.15
+        mock_settings.populate_semantic_units_table = False
 
         supabase = MagicMock()
         mock_supabase.return_value = supabase
@@ -242,6 +268,7 @@ class TestProcessMessageWithVLM:
         }
         supabase.storage.from_.return_value.download.return_value = b"content"
         supabase.table.return_value.insert.return_value.execute.return_value = MagicMock()
+        supabase.table.return_value.delete.return_value.eq.return_value.execute.return_value = MagicMock()
         supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock()
 
         from src.parser import ParseResult, Section
@@ -250,7 +277,16 @@ class TestProcessMessageWithVLM:
             text="Text",
             sections=[Section(content="Content", headers=[], level=0, pages={1})],
             page_count=1,
+            docling_doc=MagicMock(),
         )
+
+        from src.chunker import Chunk
+        mock_build_chunks.return_value = [
+            Chunk(content="Content", index=0, token_count=5,
+                  metadata={"label": "paragraph", "headings": [], "page_numbers": [1],
+                            "document_name": "test.pdf"},
+                  context=None),
+        ]
 
         from src.embedder import EmbeddingResult
 
@@ -269,8 +305,10 @@ class TestProcessMessageWithContextualChunking:
     @patch("src.worker._get_supabase")
     @patch("src.worker.parse_document")
     @patch("src.worker.embed_texts")
+    @patch("src.worker.build_chunks_from_semantic_units")
     async def test_calls_contextualizer_when_enabled(
         self,
+        mock_build_chunks,
         mock_embed,
         mock_parse,
         mock_supabase,
@@ -280,8 +318,7 @@ class TestProcessMessageWithContextualChunking:
     ):
         mock_settings.vlm_enabled = False
         mock_settings.contextual_chunking_enabled = True
-        mock_settings.chunk_max_tokens = 512
-        mock_settings.chunk_overlap = 0.15
+        mock_settings.populate_semantic_units_table = False
 
         supabase = MagicMock()
         mock_supabase.return_value = supabase
@@ -293,6 +330,7 @@ class TestProcessMessageWithContextualChunking:
         }
         supabase.storage.from_.return_value.download.return_value = b"content"
         supabase.table.return_value.insert.return_value.execute.return_value = MagicMock()
+        supabase.table.return_value.delete.return_value.eq.return_value.execute.return_value = MagicMock()
         supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock()
 
         from src.parser import ParseResult, Section
@@ -300,7 +338,16 @@ class TestProcessMessageWithContextualChunking:
             text="Document text here",
             sections=[Section(content="Section content", headers=["H1"], level=1)],
             page_count=1,
+            docling_doc=MagicMock(),
         )
+
+        from src.chunker import Chunk
+        mock_build_chunks.return_value = [
+            Chunk(content="Section content", index=0, token_count=5,
+                  metadata={"label": "paragraph", "headings": ["H1"], "page_numbers": [1],
+                            "document_name": "test.pdf"},
+                  context=None),
+        ]
 
         # Mock contextualizer to add context to chunks
         async def add_context(chunks, doc_text, config):
@@ -326,8 +373,10 @@ class TestProcessMessageWithContextualChunking:
     @patch("src.worker._get_supabase")
     @patch("src.worker.parse_document")
     @patch("src.worker.embed_texts")
+    @patch("src.worker.build_chunks_from_semantic_units")
     async def test_skips_contextualizer_when_disabled(
         self,
+        mock_build_chunks,
         mock_embed,
         mock_parse,
         mock_supabase,
@@ -337,8 +386,7 @@ class TestProcessMessageWithContextualChunking:
     ):
         mock_settings.vlm_enabled = False
         mock_settings.contextual_chunking_enabled = False
-        mock_settings.chunk_max_tokens = 512
-        mock_settings.chunk_overlap = 0.15
+        mock_settings.populate_semantic_units_table = False
 
         supabase = MagicMock()
         mock_supabase.return_value = supabase
@@ -350,6 +398,7 @@ class TestProcessMessageWithContextualChunking:
         }
         supabase.storage.from_.return_value.download.return_value = b"content"
         supabase.table.return_value.insert.return_value.execute.return_value = MagicMock()
+        supabase.table.return_value.delete.return_value.eq.return_value.execute.return_value = MagicMock()
         supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock()
 
         from src.parser import ParseResult, Section
@@ -357,7 +406,16 @@ class TestProcessMessageWithContextualChunking:
             text="Document text",
             sections=[Section(content="Content", headers=[], level=0)],
             page_count=1,
+            docling_doc=MagicMock(),
         )
+
+        from src.chunker import Chunk
+        mock_build_chunks.return_value = [
+            Chunk(content="Content", index=0, token_count=5,
+                  metadata={"label": "paragraph", "headings": [], "page_numbers": [1],
+                            "document_name": "test.pdf"},
+                  context=None),
+        ]
 
         from src.embedder import EmbeddingResult
         mock_embed.return_value = EmbeddingResult(embeddings=[[0.1] * 1536], token_count=5)

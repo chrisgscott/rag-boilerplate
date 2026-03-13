@@ -7,11 +7,12 @@ import psycopg2
 
 from src.config import settings
 from src.parser import parse_document, ParseResult
-from src.chunker import chunk_text, ChunkOptions, Chunk
+from src.chunker import Chunk, estimate_tokens
 from src.embedder import embed_texts
-from src.vlm import get_visual_pages, describe_visual_pages, upload_page_images, enrich_sections
+from src.vlm import get_visual_pages, describe_visual_pages, upload_page_images
 from src.contextualizer import contextualize_chunks
 from src.semantic_units import extract_semantic_units as extract_units, SemanticUnit
+from src.right_sizer import right_size_units, RightSizeOptions
 
 logger = logging.getLogger(__name__)
 
@@ -44,33 +45,30 @@ def update_document_status(
     supabase.table("documents").update(update_data).eq("id", document_id).execute()
 
 
-def chunk_sections(parse_result: ParseResult, doc_name: str) -> list[Chunk]:
-    """Chunk each section separately with header context."""
-    all_chunks: list[Chunk] = []
-    for section in parse_result.sections:
-        section_chunks = chunk_text(
-            section.content,
-            ChunkOptions(
-                max_tokens=settings.chunk_max_tokens,
-                overlap=settings.chunk_overlap,
-                document_title=doc_name,
-                section_header=" > ".join(section.headers) if section.headers else None,
-            ),
-        )
-        # Propagate section-level metadata to chunks
-        section_metadata: dict = {"document_name": doc_name}
-        if hasattr(section, "page_image_paths") and section.page_image_paths:
-            section_metadata["page_image_paths"] = section.page_image_paths
-        for chunk in section_chunks:
-            chunk.metadata = section_metadata
+def build_chunks_from_semantic_units(parse_result: ParseResult, doc_name: str,
+                                     vlm_page_images: dict[int, str] | None = None) -> list[Chunk]:
+    """Extract semantic units from Docling document and right-size for embedding.
 
-        all_chunks.extend(section_chunks)
+    Replaces the old chunk_sections() approach with structure-aware units.
+    """
+    semantic_units = extract_units(parse_result.docling_doc)
+    right_size_opts = RightSizeOptions(
+        min_tokens=settings.min_unit_tokens,
+        max_tokens=settings.max_unit_tokens,
+    )
+    chunks = right_size_units(semantic_units, right_size_opts)
 
-    # Re-index sequentially across all sections
-    for i, chunk in enumerate(all_chunks):
-        chunk.index = i
+    # Enrich chunks with document name and VLM page images
+    for chunk in chunks:
+        chunk.metadata["document_name"] = doc_name
+        # Map VLM page images by page number overlap
+        if vlm_page_images:
+            chunk_pages = set(chunk.metadata.get("page_numbers", []))
+            page_paths = {p: path for p, path in vlm_page_images.items() if p in chunk_pages}
+            if page_paths:
+                chunk.metadata["page_image_paths"] = page_paths
 
-    return all_chunks
+    return chunks
 
 
 def get_embedding_text(chunk: Chunk) -> str:
@@ -203,18 +201,21 @@ async def process_message(message: dict) -> None:
                 logger.info(f"Stored {len(units)} semantic units for {document_id}")
 
             # VLM visual extraction (optional — runs when VLM_ENABLED=true)
+            vlm_page_images: dict[int, str] = {}
             if settings.vlm_enabled and parse_result.docling_doc:
                 visual_pages = get_visual_pages(parse_result.docling_doc)
                 if visual_pages:
-                    descriptions = await describe_visual_pages(visual_pages)
-                    page_images = upload_page_images(visual_pages, document_id, organization_id, supabase)
-                    enrich_sections(parse_result.sections, descriptions, page_images)
+                    await describe_visual_pages(visual_pages)
+                    vlm_page_images = upload_page_images(visual_pages, document_id, organization_id, supabase)
                     logger.info(
-                        f"VLM enriched {len(descriptions)} pages for document {document_id}"
+                        f"VLM processed {len(vlm_page_images)} pages for document {document_id}"
                     )
 
-            # Chunk sections
-            chunks = chunk_sections(parse_result, doc["name"])
+            # Delete existing chunks (needed for re-ingestion)
+            supabase.table("document_chunks").delete().eq("document_id", document_id).execute()
+
+            # Build chunks from semantic units (replaces chunk_sections)
+            chunks = build_chunks_from_semantic_units(parse_result, doc["name"], vlm_page_images)
             if not chunks:
                 raise ValueError("No chunks generated from document")
 
