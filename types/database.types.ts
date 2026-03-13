@@ -55,6 +55,76 @@ export type Database = {
           },
         ]
       }
+      classification_proposals: {
+        Row: {
+          confidence: number | null
+          content: string
+          created_at: string
+          document_id: string
+          headings: string[] | null
+          id: number
+          organization_id: string
+          proposed_labels: Json
+          reviewed_at: string | null
+          reviewed_by: string | null
+          reviewer_labels: Json | null
+          semantic_unit_id: number | null
+          status: string
+        }
+        Insert: {
+          confidence?: number | null
+          content: string
+          created_at?: string
+          document_id: string
+          headings?: string[] | null
+          id?: never
+          organization_id: string
+          proposed_labels?: Json
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_labels?: Json | null
+          semantic_unit_id?: number | null
+          status?: string
+        }
+        Update: {
+          confidence?: number | null
+          content?: string
+          created_at?: string
+          document_id?: string
+          headings?: string[] | null
+          id?: never
+          organization_id?: string
+          proposed_labels?: Json
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_labels?: Json | null
+          semantic_unit_id?: number | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classification_proposals_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classification_proposals_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classification_proposals_semantic_unit_id_fkey"
+            columns: ["semantic_unit_id"]
+            isOneToOne: false
+            referencedRelation: "document_semantic_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversations: {
         Row: {
           created_at: string
@@ -144,7 +214,9 @@ export type Database = {
           document_id: string
           embedding: string | null
           fts: unknown
+          headings: string[] | null
           id: number
+          label: string | null
           metadata: Json | null
           organization_id: string
           token_count: number | null
@@ -157,7 +229,9 @@ export type Database = {
           document_id: string
           embedding?: string | null
           fts?: unknown
+          headings?: string[] | null
           id?: never
+          label?: string | null
           metadata?: Json | null
           organization_id: string
           token_count?: number | null
@@ -170,7 +244,9 @@ export type Database = {
           document_id?: string
           embedding?: string | null
           fts?: unknown
+          headings?: string[] | null
           id?: never
+          label?: string | null
           metadata?: Json | null
           organization_id?: string
           token_count?: number | null
@@ -192,11 +268,69 @@ export type Database = {
           },
         ]
       }
+      document_semantic_units: {
+        Row: {
+          content: string
+          created_at: string
+          docling_ref: string | null
+          document_id: string
+          headings: string[]
+          id: number
+          label: string
+          metadata: Json | null
+          organization_id: string
+          page_numbers: number[] | null
+          unit_index: number
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          docling_ref?: string | null
+          document_id: string
+          headings?: string[]
+          id?: never
+          label?: string
+          metadata?: Json | null
+          organization_id: string
+          page_numbers?: number[] | null
+          unit_index: number
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          docling_ref?: string | null
+          document_id?: string
+          headings?: string[]
+          id?: never
+          label?: string
+          metadata?: Json | null
+          organization_id?: string
+          page_numbers?: number[] | null
+          unit_index?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_semantic_units_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_semantic_units_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           chunk_count: number | null
           content_hash: string | null
           created_at: string
+          docling_doc: Json | null
           error_message: string | null
           file_size: number | null
           id: string
@@ -214,6 +348,7 @@ export type Database = {
           chunk_count?: number | null
           content_hash?: string | null
           created_at?: string
+          docling_doc?: Json | null
           error_message?: string | null
           file_size?: number | null
           id?: string
@@ -231,6 +366,7 @@ export type Database = {
           chunk_count?: number | null
           content_hash?: string | null
           created_at?: string
+          docling_doc?: Json | null
           error_message?: string | null
           file_size?: number | null
           id?: string
@@ -325,27 +461,49 @@ export type Database = {
           created_at: string
           expected_answer: string | null
           expected_source_ids: string[] | null
+          generation_mode: string
+          grounding_score: number | null
           id: string
           question: string
+          source_chunk_id: number | null
+          split: string
+          status: string
           test_set_id: string
         }
         Insert: {
           created_at?: string
           expected_answer?: string | null
           expected_source_ids?: string[] | null
+          generation_mode?: string
+          grounding_score?: number | null
           id?: string
           question: string
+          source_chunk_id?: number | null
+          split?: string
+          status?: string
           test_set_id: string
         }
         Update: {
           created_at?: string
           expected_answer?: string | null
           expected_source_ids?: string[] | null
+          generation_mode?: string
+          grounding_score?: number | null
           id?: string
           question?: string
+          source_chunk_id?: number | null
+          split?: string
+          status?: string
           test_set_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "eval_test_cases_source_chunk_id_fkey"
+            columns: ["source_chunk_id"]
+            isOneToOne: false
+            referencedRelation: "document_chunks"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "eval_test_cases_test_set_id_fkey"
             columns: ["test_set_id"]
@@ -533,6 +691,212 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      optimization_configs: {
+        Row: {
+          composite_score: number | null
+          composite_weights: Json
+          config: Json
+          organization_id: string
+          run_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          composite_score?: number | null
+          composite_weights?: Json
+          config: Json
+          organization_id: string
+          run_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          composite_score?: number | null
+          composite_weights?: Json
+          config?: Json
+          organization_id?: string
+          run_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "optimization_configs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "optimization_configs_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "optimization_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      optimization_experiments: {
+        Row: {
+          composite_score: number
+          config: Json
+          config_delta: Json
+          corpus_fingerprint: Json | null
+          created_at: string
+          delta: number
+          error_message: string | null
+          experiment_index: number
+          hypothesis: string | null
+          id: string
+          judge_scores: Json | null
+          organization_id: string
+          reasoning: string | null
+          retrieval_metrics: Json | null
+          run_id: string
+          status: string
+        }
+        Insert: {
+          composite_score: number
+          config: Json
+          config_delta?: Json
+          corpus_fingerprint?: Json | null
+          created_at?: string
+          delta?: number
+          error_message?: string | null
+          experiment_index: number
+          hypothesis?: string | null
+          id?: string
+          judge_scores?: Json | null
+          organization_id: string
+          reasoning?: string | null
+          retrieval_metrics?: Json | null
+          run_id: string
+          status: string
+        }
+        Update: {
+          composite_score?: number
+          config?: Json
+          config_delta?: Json
+          corpus_fingerprint?: Json | null
+          created_at?: string
+          delta?: number
+          error_message?: string | null
+          experiment_index?: number
+          hypothesis?: string | null
+          id?: string
+          judge_scores?: Json | null
+          organization_id?: string
+          reasoning?: string | null
+          retrieval_metrics?: Json | null
+          run_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "optimization_experiments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "optimization_experiments_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "optimization_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      optimization_insights: {
+        Row: {
+          insights: Json
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          insights?: Json
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          insights?: Json
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "optimization_insights_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      optimization_runs: {
+        Row: {
+          baseline_config: Json
+          baseline_score: number | null
+          best_config: Json | null
+          best_score: number | null
+          completed_at: string | null
+          composite_weights: Json
+          error_message: string | null
+          experiments_run: number
+          id: string
+          organization_id: string
+          session_report: string | null
+          started_at: string
+          status: string
+          test_set_id: string | null
+        }
+        Insert: {
+          baseline_config?: Json
+          baseline_score?: number | null
+          best_config?: Json | null
+          best_score?: number | null
+          completed_at?: string | null
+          composite_weights?: Json
+          error_message?: string | null
+          experiments_run?: number
+          id?: string
+          organization_id: string
+          session_report?: string | null
+          started_at?: string
+          status?: string
+          test_set_id?: string | null
+        }
+        Update: {
+          baseline_config?: Json
+          baseline_score?: number | null
+          best_config?: Json | null
+          best_score?: number | null
+          completed_at?: string | null
+          composite_weights?: Json
+          error_message?: string | null
+          experiments_run?: number
+          id?: string
+          organization_id?: string
+          session_report?: string | null
+          started_at?: string
+          status?: string
+          test_set_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "optimization_runs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "optimization_runs_test_set_id_fkey"
+            columns: ["test_set_id"]
+            isOneToOne: false
+            referencedRelation: "eval_test_sets"
             referencedColumns: ["id"]
           },
         ]
@@ -776,6 +1140,7 @@ export type Database = {
           similarity: number
         }[]
       }
+      text_array_to_string: { Args: { arr: string[] }; Returns: string }
     }
     Enums: {
       [_ in never]: never
