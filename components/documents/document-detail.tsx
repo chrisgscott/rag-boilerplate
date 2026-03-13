@@ -38,6 +38,7 @@ type Chunk = {
   content: string;
   token_count: number | null;
   metadata: unknown;
+  label: string | null;
 };
 
 type PageImage = {
@@ -190,9 +191,16 @@ export function DocumentDetail({
                 <Card key={chunk.id} id={`chunk-${chunk.chunk_index + 1}`}>
                   <CardHeader className="py-3 px-4">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm font-medium">
-                        Chunk {chunk.chunk_index + 1}
-                      </CardTitle>
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-sm font-medium">
+                          Chunk {chunk.chunk_index + 1}
+                        </CardTitle>
+                        {chunk.label && (
+                          <Badge variant="secondary" className="text-xs capitalize">
+                            {chunk.label}
+                          </Badge>
+                        )}
+                      </div>
                       {chunk.token_count && (
                         <Badge variant="outline" className="text-xs">
                           {chunk.token_count} tokens

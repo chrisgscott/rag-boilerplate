@@ -34,7 +34,7 @@ export default async function DocumentDetailPage({
   // Fetch chunks ordered by index
   const { data: chunks } = await supabase
     .from("document_chunks")
-    .select("id, chunk_index, content, token_count, metadata")
+    .select("id, chunk_index, content, token_count, metadata, label")
     .eq("document_id", id)
     .order("chunk_index", { ascending: true });
 
